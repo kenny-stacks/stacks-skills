@@ -102,6 +102,7 @@ When you confirm the design is complete, we proceed to Phase 2.
 ---
 
 ## Phase 2/5: Tests
+**TDD Status:** [✓ followed | ⚠ skipped]
 
 **Purpose:** Write comprehensive unit tests BEFORE implementation.
 
@@ -113,6 +114,21 @@ Test-driven development ensures:
 - Regressions are caught automatically
 - Edge cases are considered early
 
+### Collaborative Test Generation
+
+I'll propose test scenarios organized by category:
+
+**Happy Path:**
+- [Scenario description with expected outcome]
+
+**Edge Cases:**
+- [Zero/boundary values, empty inputs]
+
+**Error Handling:**
+- [Authorization failures, validation errors]
+
+Review and approve the scenarios. After approval, I'll write all test code in batch.
+
 ### Steps
 
 1. **Create Contract Scaffold**
@@ -121,19 +137,31 @@ Test-driven development ensures:
    ```
    Creates: `contracts/my-contract.clar` and `tests/my-contract.test.ts`
 
-2. **Write Unit Tests**
-   - One test minimum per public function
-   - Test success cases (happy path)
-   - Test error cases (expected failures)
-   - Test edge cases (boundary conditions)
+2. **I Propose Test Scenarios**
+   Based on the design doc, I'll suggest test scenarios for each function
 
-3. **Run Tests (Should Fail)**
+3. **You Review and Approve**
+   Confirm the scenarios cover your requirements
+
+4. **I Write Test Files**
+   Implement all approved scenarios in batch
+
+5. **Run Tests (Should Fail)**
    ```bash
    clarinet test
    ```
-   Tests should fail now - no implementation exists yet.
+   Tests should fail now - no implementation exists yet (RED phase)
 
 **Reference:** For testing patterns, see [references/clarity-tdd.md](references/clarity-tdd.md)
+
+### TDD Compliance
+
+If you request contract code before tests exist, I'll gently redirect:
+"Following TDD, let's write tests first. This helps catch edge cases early."
+
+If you prefer to proceed anyway, I'll continue and track the workflow:
+- **TDD: ✓ followed** - Tests written before implementation
+- **TDD: ⚠ skipped** - Contract written before tests (increased coverage threshold)
 
 ### Verification (Automatic)
 
@@ -156,6 +184,7 @@ When verification passes, we proceed automatically to Phase 3.
 ---
 
 ## Phase 3/5: Implementation
+**TDD Status:** [✓ followed | ⚠ skipped]
 
 **Purpose:** Write Clarity code to pass tests.
 
@@ -183,7 +212,31 @@ When verification passes, we proceed automatically to Phase 3.
    ```
    Continue until all tests pass.
 
-**Reference:** For CLI commands, see [references/clarity-cli.md](references/clarity-cli.md)
+**Reference:** For implementation patterns, see [references/clarity-implementation.md](references/clarity-implementation.md)
+
+### Best Practices Review
+
+After each function, I'll review for Clarity best practices:
+
+**Coding Style:**
+- Sequential asserts instead of nested if
+- Meaningful error codes (HTTP-like: 400, 401, 404)
+- No unnecessary begin blocks
+- No unwrap-panic (use unwrap! with error codes)
+
+**Storage:**
+- Hash storage for large data
+- Minimal on-chain storage
+- Efficient map usage
+
+**Upgradability:**
+- Dynamic principals for upgradable references
+- Data/logic separation where appropriate
+
+I'll auto-fix mechanical violations (unnecessary begin, unwrap-panic) and explain what changed.
+For structural changes (nested if → asserts), I'll ask first.
+
+After implementation, I'll run `clarinet check` to verify syntax and type correctness.
 
 ### Verification (Automatic)
 
