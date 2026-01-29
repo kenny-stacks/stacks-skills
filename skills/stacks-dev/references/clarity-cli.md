@@ -2,164 +2,13 @@
 
 ## Contents
 
-- [Project Setup](#project-setup)
-- [Development Commands](#development-commands)
-- [Local Development](#local-development)
-- [Deployment Commands](#deployment-commands)
 - [Quick Reference](#quick-reference)
+- [Command Automation](#command-automation)
+- [Error Handling](#error-handling)
+- [Devnet Lifecycle](#devnet-lifecycle)
+- [Deployment Safety](#deployment-safety)
+- [Console Commands](#console-commands)
 - [External References](#external-references)
-
-## Project Setup
-
-### Create New Project
-
-```bash
-clarinet new my-project
-cd my-project
-```
-
-Creates project structure:
-```
-my-project/
-  Clarinet.toml        # Project configuration
-  contracts/           # Clarity contracts
-  tests/               # Test files
-  settings/            # Network settings
-```
-
-### Add New Contract
-
-```bash
-clarinet contract new counter
-```
-
-Creates:
-- `contracts/counter.clar` - Contract source
-- `tests/counter.test.ts` - Test file
-
-## Development Commands
-
-### Check Syntax and Types
-
-```bash
-clarinet check
-```
-
-Validates all contracts for:
-- Syntax errors
-- Type errors
-- Undefined references
-
-Run after every contract change.
-
-### Interactive Console
-
-```bash
-clarinet console
-```
-
-Opens REPL for:
-- Testing functions interactively
-- Inspecting contract state
-- Experimenting with Clarity code
-
-### Run Tests
-
-```bash
-# Run all tests
-clarinet test
-
-# Run with coverage
-clarinet test --coverage
-
-# Run specific test file
-clarinet test tests/counter.test.ts
-
-# Watch mode (re-run on changes)
-clarinet test --watch
-```
-
-## Local Development
-
-### Start Devnet
-
-```bash
-clarinet devnet start
-```
-
-Starts local Stacks blockchain with:
-- Bitcoin regtest node
-- Stacks node
-- Pre-funded test accounts
-
-### Stop Devnet
-
-```bash
-clarinet devnet stop
-```
-
-### Devnet Configuration
-
-Edit `settings/Devnet.toml`:
-
-```toml
-[network]
-name = "devnet"
-
-[[accounts]]
-name = "deployer"
-mnemonic = "..."
-balance = 10_000_000_000_000
-
-[[accounts]]
-name = "wallet_1"
-mnemonic = "..."
-balance = 1_000_000_000_000
-```
-
-## Deployment Commands
-
-### Generate Deployment Plan
-
-```bash
-# For devnet
-clarinet deployments generate --devnet
-
-# For testnet
-clarinet deployments generate --testnet
-
-# For mainnet
-clarinet deployments generate --mainnet
-```
-
-Creates deployment plan in `deployments/` directory.
-
-### Apply Deployment
-
-```bash
-# Apply to devnet
-clarinet deployments apply --devnet
-
-# Apply to testnet (requires funded wallet)
-clarinet deployments apply --testnet
-
-# Apply to mainnet (requires funded wallet)
-clarinet deployments apply --mainnet
-```
-
-### Deployment Plan Structure
-
-```yaml
-# deployments/default.devnet-plan.yaml
----
-id: 0
-name: Deploy counter contract
-network: devnet
-actions:
-  - action: deploy
-    contract: counter
-    sender: deployer
-```
 
 ## Quick Reference
 
@@ -189,7 +38,7 @@ actions:
 
 ## Command Automation
 
-When executing Clarinet commands, the skill applies different automation levels based on command impact.
+When executing Clarinet commands, apply different automation levels based on command impact.
 
 ### Auto-Execute Commands
 
@@ -205,56 +54,25 @@ These commands run without confirmation (safe, reversible, or local-only):
 
 ### Confirmation Required
 
-These commands require explicit user confirmation:
-
 | Command | Reason | Confirmation Pattern |
 |---------|--------|---------------------|
 | `clarinet new <name>` | May overwrite existing project | Check for Clarinet.toml first, warn if exists |
-| `clarinet devnet start` | Long-running process, needs dedicated terminal | Suggest opening in separate terminal |
-| `clarinet deployments apply --testnet` | Costs real testnet tokens | Show plan summary, request confirmation |
-| `clarinet deployments apply --mainnet` | Costs real STX | Show plan summary, explicit "deploy to mainnet" confirmation |
-| Network tier escalation | Moving from devnet to testnet/mainnet | Always confirm tier change |
+| `clarinet devnet start` | Long-running process | Suggest dedicated terminal |
+| `clarinet deployments apply --testnet` | Costs testnet tokens | Show plan summary, request confirmation |
+| `clarinet deployments apply --mainnet` | Costs real STX | Show plan summary, explicit confirmation |
+| Network tier escalation | Moving to higher tier | Always confirm tier change |
 
 ### Pre-Command Detection
 
-Before executing commands, check prerequisites:
-
 ```bash
 # Check for existing project (before clarinet new)
-if [ -f "Clarinet.toml" ]; then
-  echo "WARNING: Clarinet.toml already exists"
-fi
+[ -f "Clarinet.toml" ] && echo "WARNING: Clarinet.toml already exists"
 
-# Check for Clarinet installation (before any command)
-if ! command -v clarinet &> /dev/null; then
-  echo "Clarinet not found. Install: brew install clarinet"
-fi
+# Check for Clarinet installation
+command -v clarinet &> /dev/null || echo "Clarinet not found. Install: brew install clarinet"
 
 # Check for Docker (before devnet commands)
-if ! docker info &> /dev/null; then
-  echo "Docker not running. Start Docker Desktop first."
-fi
-```
-
-### Decision Tree
-
-```
-User requests CLI operation
-    |
-    ├── Is it a read/check operation?
-    │   └── YES → Auto-execute (clarinet check, clarinet test)
-    |
-    ├── Is it creating local files?
-    │   ├── New contract → Auto-execute, confirm creation
-    │   └── New project → Check for existing, warn if overwrite
-    |
-    ├── Is it a deployment?
-    │   ├── Devnet → Auto-execute (local network)
-    │   ├── Testnet → Show plan, request confirmation
-    │   └── Mainnet → Show plan, explicit confirmation required
-    |
-    └── Is it starting a service?
-        └── Devnet start → Suggest dedicated terminal, don't auto-background
+docker info &> /dev/null || echo "Docker not running. Start Docker Desktop first."
 ```
 
 ## Error Handling
@@ -263,114 +81,220 @@ When `clarinet check` returns errors, interpret and respond appropriately.
 
 ### Error Interpretation
 
-Parse `clarinet check` output to extract structured error information:
+Parse `clarinet check` output for structured information:
 
 ```
-Raw error:
-error: expecting expression of type 'uint', found 'int'
-  --> contracts/counter.clar:15:5
+Raw: error: expecting expression of type 'uint', found 'int'
+     --> contracts/counter.clar:15:5
 
-Interpreted format:
-- File: contracts/counter.clar
-- Line: 15, Column: 5
+Interpreted:
+- File: contracts/counter.clar, Line: 15, Column: 5
 - Type: Type mismatch
 - Issue: Expected uint, found int
-- Suggestion: Use (to-uint value) or change function signature to accept int
+- Suggestion: Use (to-uint value) or change function signature
 ```
-
-Common error categories:
 
 | Category | Pattern | Example |
 |----------|---------|---------|
-| Syntax | "unexpected token", "expected" | Missing parenthesis, invalid keyword |
-| Type | "expecting expression of type" | Wrong type passed to function |
-| Analysis | "use of unresolved" | Undefined variable or function |
-| Trait | "does not conform to trait" | Missing trait method implementation |
+| Syntax | "unexpected token", "expected" | Missing parenthesis |
+| Type | "expecting expression of type" | Wrong type passed |
+| Analysis | "use of unresolved" | Undefined variable |
+| Trait | "does not conform to trait" | Missing method |
 
 ### Auto-Fix Patterns
 
-These mechanical issues can be fixed automatically (up to 3 attempts):
+Mechanical issues fixed automatically (up to 3 attempts):
 
 **1. Unnecessary begin blocks**
 ```clarity
-;; Before (flagged by clarinet check)
-(define-public (get-value)
-  (begin
+;; Before                          ;; After
+(define-public (get-value)         (define-public (get-value)
+  (begin                             (ok counter))
     (ok counter)))
-
-;; After (auto-fix)
-(define-public (get-value)
-  (ok counter))
 ```
 
 **2. unwrap-panic usage**
 ```clarity
-;; Before (unsafe)
-(unwrap-panic (map-get? balances user))
-
-;; After (auto-fix with suggested error code)
-(unwrap! (map-get? balances user) (err u404))
-```
-
-**3. Obvious syntax fixes**
-```clarity
-;; Before: missing closing paren
-(define-data-var counter uint u0
-
-;; After: auto-fix
-(define-data-var counter uint u0)
+;; Before (unsafe)                 ;; After (with suggested error)
+(unwrap-panic (map-get? ...))      (unwrap! (map-get? ...) (err u404))
 ```
 
 ### Manual Intervention Required
 
-These issues require user decision - explain the problem, don't auto-fix:
-
 | Issue Type | Why Manual | How to Present |
 |------------|------------|----------------|
-| Type signature changes | Affects API contract | "Function expects uint but receives int. Options: 1) Convert with to-uint, 2) Change signature to int" |
-| Undefined references | May need new definition | "Variable 'user-balance' not defined. Need to: 1) Add define-data-var, or 2) Check spelling" |
-| Logic errors | Intent unclear | "Condition appears inverted. Current: (< a b), did you mean (> a b)?" |
-| Trait conformance | Design decision | "Contract missing trait method 'transfer'. Add implementation or remove trait declaration?" |
+| Type signature changes | Affects API | Options: convert type or change signature |
+| Undefined references | May need new definition | Suggest spelling check or add definition |
+| Logic errors | Intent unclear | Present question about intended behavior |
 
 ### Auto-Fix Loop
 
 ```
 1. Run `clarinet check`
-   |
 2. Parse errors
-   |
-3. For each error:
-   |
-   ├── Is it auto-fixable? (begin blocks, unwrap-panic, syntax)
-   │   └── YES → Apply fix, continue to step 4
-   │   └── NO → Collect for user report
-   |
-4. Re-run `clarinet check`
-   |
-5. Repeat steps 2-4 (max 3 iterations)
-   |
-6. After 3 attempts OR no auto-fixable errors:
-   |
-   ├── All errors resolved → Report success
-   └── Errors remain → Present to user with explanations
+3. For auto-fixable: Apply fix
+   For manual: Collect for user report
+4. Re-run check (max 3 iterations)
+5. If errors remain: Present to user with explanations
 ```
 
-**Escalation message format:**
+## Devnet Lifecycle
+
+### Prerequisites
+
+Before devnet commands, verify Docker:
+
+```bash
+docker info &> /dev/null || { echo "Docker not running. Start Docker Desktop first."; exit 1; }
 ```
-clarinet check found errors that need your input:
 
-1. [Type Error] contracts/counter.clar:15
-   Expected uint, found int
-   → Options: Convert with (to-uint ...) or change function signature
+Docker not installed?
+- macOS: `brew install --cask docker`
+- Linux: [Docker Engine installation](https://docs.docker.com/engine/install/)
+- Windows: Docker Desktop with WSL2
 
-2. [Undefined] contracts/counter.clar:23
-   Variable 'user-balance' not found
-   → Did you mean 'user-balances' (defined on line 5)?
+### Starting Devnet
+
+Suggest dedicated terminal (not background):
+
+```
+Devnet needs its own terminal to keep logs visible.
+
+In a new terminal window, run:
+  clarinet devnet start
+
+Keep this terminal open during development.
+```
+
+### Health Check
+
+After user starts devnet, verify node is ready:
+
+```bash
+# Wait for node (timeout 60s)
+for i in {1..20}; do
+  HEIGHT=$(curl -s http://localhost:20443/v2/info | jq -r '.stacks_tip_height // 0')
+  [ "$HEIGHT" -gt 0 ] && { echo "Node ready! Block height: $HEIGHT"; break; }
+  sleep 3
+done
+```
+
+**Troubleshooting if timeout:**
+1. Check devnet terminal for errors
+2. Verify Docker containers: `docker ps`
+3. Try: `clarinet devnet stop && clarinet devnet start`
+
+### Session End
+
+Always remind user to stop devnet:
+
+```
+Before ending this session, stop the devnet:
+  clarinet devnet stop
+
+This frees Docker resources. Data persists in .devnet/ for next session.
+```
+
+## Deployment Safety
+
+### Safety Tiers
+
+| Network | Confirmation | Pre-Check | On-Chain Verify | Risk |
+|---------|--------------|-----------|-----------------|------|
+| Devnet  | No           | No        | No (local)      | None |
+| Testnet | Yes          | Yes       | Yes             | Low  |
+| Mainnet | Yes (explicit) | Yes     | Yes             | High |
+
+### Devnet Deployment (Auto)
+
+No confirmation needed - local network:
+
+```bash
+clarinet deployments generate --devnet
+clarinet deployments apply --devnet
+```
+
+### Testnet/Mainnet Workflow
+
+1. **Generate plan:** `clarinet deployments generate --testnet`
+2. **Show summary:** Network, deployer, contracts, estimated fees
+3. **Request confirmation:** Simple yes/no for testnet; type "deploy to mainnet" for mainnet
+4. **Apply:** `clarinet deployments apply --testnet`
+5. **Verify on-chain:**
+```bash
+curl -s "https://api.testnet.hiro.so/v2/contracts/interface/DEPLOYER.CONTRACT" | jq '.functions | length'
+```
+
+### Network Switching
+
+When switching to higher tier, always confirm:
+
+```
+Current: devnet -> Requested: testnet
+You're switching from local to public testnet.
+This will use real testnet tokens. Continue? [y/N]
+```
+
+For mainnet: require typing "deploy to mainnet"
+
+## Console Commands
+
+### Starting Console
+
+```bash
+clarinet console
+```
+
+Provides: contract access, pre-funded wallets, real-time function testing.
+
+### Common Commands
+
+```clarity
+;; Call read-only function
+>> (contract-call? .counter get-count)
+(ok u0)
+
+;; Call public function
+>> (contract-call? .counter increment)
+(ok u1)
+
+;; Switch caller
+>> ::set_tx_sender ST1J4G6RR643BCG8G8SR6M2D9Z9KXT2NJDRK3FBTK
+
+;; Get balances
+>> ::get_assets_maps
+
+;; Advance blocks (for time-locked functions)
+>> ::advance_chain_tip 100
+```
+
+### Testing Patterns
+
+```clarity
+;; Test error conditions (unauthorized access)
+>> ::set_tx_sender ST1J4G6RR643BCG8G8SR6M2D9Z9KXT2NJDRK3FBTK
+>> (contract-call? .counter admin-only-function)
+(err u401)  ;; Expected
+
+;; Test state changes
+>> (contract-call? .counter get-count)
+(ok u0)
+>> (contract-call? .counter increment)
+(ok u1)
+>> (contract-call? .counter get-count)
+(ok u1)  ;; Verified
+
+;; Test multi-user scenarios
+>> ::set_tx_sender ST1J4G6RR643BCG8G8SR6M2D9Z9KXT2NJDRK3FBTK
+>> (contract-call? .vault deposit u1000)
+(ok true)
+>> ::set_tx_sender ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG
+>> (contract-call? .vault withdraw u1000)
+(err u403)  ;; Unauthorized - correct
 ```
 
 ## External References
 
-### Clarinet Documentation
 - [Clarinet CLI Reference](https://docs.stacks.co/reference/clarinet/cli-reference)
 - [Clarinet Installation](https://docs.stacks.co/reference/clarinet/installation)
 - [Deployment Plans](https://docs.stacks.co/reference/clarinet/deployments)
