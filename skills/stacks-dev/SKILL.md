@@ -382,37 +382,69 @@ When automated checks pass, I'll present a security summary for your review.
 
 **Purpose:** Integrate contract with web application.
 
-### Steps
+### Devnet Lifecycle
 
-1. **Start Devnet**
+Before frontend development, start local blockchain:
+
+1. **Verify Docker running** (required for devnet)
+2. **Start devnet** in a dedicated terminal:
    ```bash
    clarinet devnet start
    ```
-   Local blockchain running at `localhost:3999`
+3. **Wait for health check** - Node responds at `localhost:20443`
+4. **End session:** Run `clarinet devnet stop` when finished
 
-2. **Connect Wallet**
+Contracts auto-deploy to devnet on startup.
+
+### Console Testing
+
+For interactive contract exploration before frontend:
+```bash
+clarinet console
+```
+Common commands:
+- `(contract-call? .my-contract my-function arg1)` - Call functions
+- `::set_tx_sender ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM` - Switch sender
+- `::get_assets_maps` - View balances
+
+**Note:** Console is for manual exploration; tests use Vitest.
+
+### Steps
+
+1. **Connect Wallet**
    - Use `@stacks/connect` for wallet integration
    - Handle wallet connection/disconnection
 
-3. **Call Contract Functions**
+2. **Call Contract Functions**
    - Use `@stacks/transactions` for contract calls
-   - Handle transaction signing
-   - Process transaction results
+   - Handle transaction signing and results
 
-4. **Handle Results and Errors**
+3. **Handle Errors**
    - Parse contract responses
    - Display user-friendly messages
-   - Handle transaction failures
 
 **Reference:** For frontend patterns, see [references/clarity-frontend.md](references/clarity-frontend.md)
+
+### Deployment Safety
+
+Network-tiered confirmation requirements:
+
+| Network | Confirmation | Notes |
+|---------|--------------|-------|
+| Devnet | Auto-deploy | No confirmation needed |
+| Testnet | Show plan, confirm | Preview costs first |
+| Mainnet | Explicit confirm | Show costs, verify twice |
+
+Switching to higher-tier network always requires confirmation.
 
 ### Verification (Manual)
 
 You verify:
-- [ ] Contract deployed to devnet
+- [ ] Devnet started and healthy
+- [ ] Contracts deployed to devnet
 - [ ] Wallet connects successfully
 - [ ] Contract calls work from frontend
-- [ ] Error handling works correctly
+- [ ] (Optional) Deployed to testnet/mainnet with verification
 
 ### Gate: User Verification
 
@@ -420,8 +452,8 @@ This is the final phase. You verify the integration works as expected.
 
 **Deployment options after verification:**
 - Stay on devnet for more testing
-- Deploy to testnet for public testing
-- Deploy to mainnet for production
+- Deploy to testnet (requires confirmation)
+- Deploy to mainnet (requires explicit confirmation)
 
 ---
 
