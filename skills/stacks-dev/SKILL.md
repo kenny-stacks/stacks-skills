@@ -61,6 +61,20 @@ Design    ->  Tests     ->  Implementation -> Verification  -> Frontend
 
 **Purpose:** Define contract requirements before writing any code.
 
+### Project Setup
+
+Before designing, ensure Clarinet environment is ready:
+
+1. **Verify Clarinet installed:** Run `clarinet --version`
+   - If missing: Install via `brew install clarinet` (macOS) or see [Clarinet releases](https://github.com/hirosystems/clarinet/releases)
+
+2. **Check project structure:**
+   - If `Clarinet.toml` exists: Use existing project
+   - If missing: Run `clarinet new <project-name>` to initialize
+   - If fresh start needed: Confirm before overwriting existing project
+
+**Reference:** For CLI details, see [references/clarity-cli.md](references/clarity-cli.md)
+
 ### Steps
 
 1. **Gather Requirements**
@@ -87,6 +101,8 @@ Design    ->  Tests     ->  Implementation -> Verification  -> Frontend
 ### Verification
 
 Before proceeding, confirm:
+- [ ] Clarinet project initialized (`Clarinet.toml` exists)
+- [ ] Project structure valid (`contracts/`, `tests/`, `settings/` directories)
 - [ ] Requirements documented and understood
 - [ ] Data structures defined (vars, maps, constants)
 - [ ] Public function signatures specified
