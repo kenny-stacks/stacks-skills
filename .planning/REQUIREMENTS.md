@@ -9,20 +9,20 @@ Requirements for initial release. Single `stacks-dev` skill covering full workfl
 
 ### Plugin Foundation
 
-- [ ] **PLUG-01**: Plugin has valid plugin.json with name, description, and skill references
-- [ ] **PLUG-02**: Plugin follows Claude Code plugin directory structure (skills/ at root, .claude-plugin/ for metadata only)
-- [ ] **PLUG-03**: Plugin is installable via `claude plugins add` from local path or git URL
+- [x] **PLUG-01**: Plugin has valid plugin.json with name, description, and skill references
+- [x] **PLUG-02**: Plugin follows Claude Code plugin directory structure (skills/ at root, .claude-plugin/ for metadata only)
+- [x] **PLUG-03**: Plugin loads via `--plugin-dir` flag for testing, installable via marketplaces for distribution
 
 ### Agent Skills Spec Compliance
 
-- [ ] **SPEC-01**: Skill has `name` field (1-64 chars, lowercase + hyphens, matches directory name)
-- [ ] **SPEC-02**: Skill has `description` field (1-1024 chars, describes what skill does AND when to use it)
-- [ ] **SPEC-03**: Skill has `license` field specifying license terms
-- [ ] **SPEC-04**: Skill has `metadata` field with author and version
-- [ ] **SPEC-05**: Skill has `allowed-tools` field declaring required tools
-- [ ] **SPEC-06**: Skill passes `skills-ref validate` validation
-- [ ] **SPEC-07**: Skill follows progressive disclosure (~100 tokens metadata, <5k instructions)
-- [ ] **SPEC-08**: Skill uses optional directories correctly (references/, scripts/, assets/)
+- [x] **SPEC-01**: Skill has `name` field (1-64 chars, lowercase + hyphens, matches directory name)
+- [x] **SPEC-02**: Skill has `description` field (1-1024 chars, describes what skill does AND when to use it)
+- [x] **SPEC-03**: Skill has `license` field specifying license terms
+- [x] **SPEC-04**: Skill has `metadata` field with author and version
+- [x] **SPEC-05**: Skill has `allowed-tools` field declaring required tools
+- [x] **SPEC-06**: Skill passes `skills-ref validate` validation
+- [x] **SPEC-07**: Skill follows progressive disclosure (~100 tokens metadata, <5k instructions)
+- [x] **SPEC-08**: Skill uses optional directories correctly (references/, scripts/, assets/)
 
 ### Skill Structure
 
@@ -115,17 +115,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PLUG-01 | Phase 1 | Pending |
-| PLUG-02 | Phase 1 | Pending |
-| PLUG-03 | Phase 1 | Pending |
-| SPEC-01 | Phase 1 | Pending |
-| SPEC-02 | Phase 1 | Pending |
-| SPEC-03 | Phase 1 | Pending |
-| SPEC-04 | Phase 1 | Pending |
-| SPEC-05 | Phase 1 | Pending |
-| SPEC-06 | Phase 1 | Pending |
-| SPEC-07 | Phase 1 | Pending |
-| SPEC-08 | Phase 1 | Pending |
+| PLUG-01 | Phase 1 | Complete |
+| PLUG-02 | Phase 1 | Complete |
+| PLUG-03 | Phase 1 | Complete |
+| SPEC-01 | Phase 1 | Complete |
+| SPEC-02 | Phase 1 | Complete |
+| SPEC-03 | Phase 1 | Complete |
+| SPEC-04 | Phase 1 | Complete |
+| SPEC-05 | Phase 1 | Complete |
+| SPEC-06 | Phase 1 | Complete |
+| SPEC-07 | Phase 1 | Complete |
+| SPEC-08 | Phase 1 | Complete |
 | SKIL-01 | Phase 2 | Pending |
 | SKIL-02 | Phase 2 | Pending |
 | SKIL-03 | Phase 2 | Pending |

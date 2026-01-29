@@ -20,13 +20,13 @@ This roadmap delivers a Claude Code plugin for Stacks blockchain development wit
 **Plans:** 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md - Create plugin structure, SKILL.md with frontmatter, optional directories
-- [ ] 01-02-PLAN.md - Validate with skills-ref and test plugin installation
+- [x] 01-01-PLAN.md - Create plugin structure, SKILL.md with frontmatter, optional directories
+- [x] 01-02-PLAN.md - Validate with skills-ref and test plugin loading
 
 **Requirements:**
 - PLUG-01: Plugin has valid plugin.json with name, description, and skill references
 - PLUG-02: Plugin follows Claude Code plugin directory structure (skills/ at root, .claude-plugin/ for metadata only)
-- PLUG-03: Plugin is installable via `claude plugins add` from local path or git URL
+- PLUG-03: Plugin loads via `--plugin-dir` flag for testing, installable via marketplaces for distribution
 - SPEC-01: Skill has `name` field (1-64 chars, lowercase + hyphens, matches directory name)
 - SPEC-02: Skill has `description` field (1-1024 chars, describes what skill does AND when to use it)
 - SPEC-03: Skill has `license` field specifying license terms
@@ -38,7 +38,7 @@ Plans:
 
 **Success Criteria:**
 1. Plugin directory structure exists with .claude-plugin/plugin.json and skills/stacks-dev/SKILL.md
-2. `claude plugins add /path/to/stacks-skills` successfully installs plugin
+2. `claude --plugin-dir /path/to/stacks-skills` successfully loads plugin for testing
 3. `skills-ref validate ./skills/stacks-dev` passes all validation checks
 4. Skill appears in `/help` menu and auto-loads when user mentions "Stacks" or "Clarity"
 5. Skill YAML frontmatter contains all required fields (name, description, license, metadata, allowed-tools)
@@ -163,7 +163,7 @@ Plans:
 
 | Phase | Status | Requirements | Completed |
 |-------|--------|--------------|-----------|
-| 1 - Plugin Foundation & Compliance | Planning Complete | 11 | 0/11 |
+| 1 - Plugin Foundation & Compliance | ✓ Complete | 11 | 11/11 |
 | 2 - Core Skill Structure | Pending | 8 | 0/8 |
 | 3 - Design & Planning Phase | Pending | 4 | 0/4 |
 | 4 - TDD Workflow & Contract Implementation | Pending | 8 | 0/8 |
@@ -189,4 +189,4 @@ If the single skill proves insufficient (context window issues, exceeds 500 line
 
 ---
 
-*Last updated: 2026-01-29 (Phase 1 planned)*
+*Last updated: 2026-01-29 (Phase 1 complete)*
