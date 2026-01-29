@@ -16,50 +16,416 @@ allowed-tools:
 
 # Stacks Development Assistant
 
-This skill provides comprehensive guidance for Stacks blockchain development, focusing on Clarity smart contract development with enforced test-driven development (TDD) workflow using the Clarinet CLI toolkit.
-
-The skill assists developers through the complete lifecycle of smart contract development: from initial design and planning through test creation, implementation, verification, deployment, and frontend integration.
+This skill guides you through Clarity smart contract development using an enforced test-driven development (TDD) workflow with the Clarinet CLI toolkit.
 
 ## Core Capabilities
 
-- **Clarity Smart Contract Development**: Guide developers through writing secure, efficient Clarity contracts
-- **Test-Driven Development**: Enforce TDD workflow with unit tests written before implementation
-- **Clarinet CLI Integration**: Leverage Clarinet for project scaffolding, testing, and deployment
-- **Quality Assurance**: Ensure high test coverage and proper verification before deployment
-- **Frontend Integration**: Help integrate contracts with web applications using Stacks.js libraries
+- **Design-First Approach**: Define contract requirements, data structures, and public interfaces before coding
+- **Test-Driven Development**: Write comprehensive tests before implementation (enforced)
+- **Clarinet Integration**: Leverage Clarinet for project scaffolding, testing, coverage, and deployment
+- **Quality Assurance**: Verify 90%+ coverage and security patterns before deployment
+- **Frontend Integration**: Connect contracts to web applications using Stacks.js
 
-## Workflow
-
-The skill guides developers through these phases:
-
-1. **Design**: Define contract requirements, data structures, and public/read-only functions
-2. **Test**: Write comprehensive unit tests that specify expected behavior
-3. **Implement**: Write Clarity code to pass tests with proper error handling
-4. **Verify**: Run tests, check coverage, perform security review
-5. **Deploy**: Deploy to testnet/mainnet with proper configuration
-6. **Integrate**: Connect contracts to frontend applications
-
-## Usage
+## When This Skill Activates
 
 This skill automatically activates when you mention:
 - "Stacks" or "Stacks blockchain"
 - "Clarity" or "Clarity smart contract"
 - "Clarinet" or "Clarinet project"
-
-You can also explicitly activate it by referencing "stacks-dev" in your request.
-
-## Additional Resources
-
-Detailed reference documentation, testing guides, and code templates are available in the `references/`, `scripts/`, and `assets/` subdirectories. These resources are loaded on-demand to keep the core skill instructions concise while providing comprehensive guidance when needed.
-
-## Quality Standards
-
-This skill enforces high-quality development practices:
-- All contracts must have corresponding unit tests
-- Test coverage should be maximized before deployment
-- All public functions must include proper error handling
-- Contracts should follow Clarity best practices and security patterns
+- Working with `.clar` files or `Clarinet.toml`
 
 ---
 
-*This is a Phase 1 placeholder. Core workflow instructions and detailed guidance will be added in Phase 2.*
+## Workflow Overview
+
+Development follows 5 sequential phases with verification gates between each:
+
+```
+Phase 1       Phase 2       Phase 3           Phase 4          Phase 5
+Design    ->  Tests     ->  Implementation -> Verification  -> Frontend
+[user gate]   [auto gate]   [auto gate]       [auto+user]      [user gate]
+```
+
+**Progress Format:** Each phase shows `Phase X/5: [Phase Name]`
+
+**Gate Types:**
+- **User Gate**: Requires your confirmation before proceeding
+- **Auto Gate**: Verification must pass automatically
+- **Auto+User**: Automated checks plus your security review
+
+**Navigation:** You can request to jump phases, but I'll warn about skipping verification.
+
+---
+
+## Phase 1/5: Design
+
+**Purpose:** Define contract requirements before writing any code.
+
+### Steps
+
+1. **Gather Requirements**
+   - What problem does this contract solve?
+   - Who are the users (principals)?
+   - What operations do they need?
+
+2. **Define Data Structures**
+   - State variables (`define-data-var`)
+   - Maps for key-value storage (`define-map`)
+   - Constants for fixed values (`define-constant`)
+
+3. **Specify Public Interface**
+   - Public functions with inputs/outputs
+   - Read-only functions for queries
+   - Error codes and response types
+
+4. **Consider Upgradability**
+   - Will this contract need updates?
+   - Should it delegate to other contracts?
+
+**Reference:** For design patterns, see [references/clarity-design.md](references/clarity-design.md)
+
+### Verification
+
+Before proceeding, confirm:
+- [ ] Requirements documented and understood
+- [ ] Data structures defined (vars, maps, constants)
+- [ ] Public function signatures specified
+- [ ] Error codes defined
+- [ ] Upgradability approach decided
+
+### Gate: User Confirmation
+
+When you confirm the design is complete, we proceed to Phase 2.
+
+**Ready to proceed?** Confirm or request changes.
+
+---
+
+## Phase 2/5: Tests
+
+**Purpose:** Write comprehensive unit tests BEFORE implementation.
+
+### Why Tests First?
+
+Test-driven development ensures:
+- Contract behavior is specified before code exists
+- Implementation matches your requirements
+- Regressions are caught automatically
+- Edge cases are considered early
+
+### Steps
+
+1. **Create Contract Scaffold**
+   ```bash
+   clarinet contract new my-contract
+   ```
+   Creates: `contracts/my-contract.clar` and `tests/my-contract.test.ts`
+
+2. **Write Unit Tests**
+   - One test minimum per public function
+   - Test success cases (happy path)
+   - Test error cases (expected failures)
+   - Test edge cases (boundary conditions)
+
+3. **Run Tests (Should Fail)**
+   ```bash
+   clarinet test
+   ```
+   Tests should fail now - no implementation exists yet.
+
+**Reference:** For testing patterns, see [references/clarity-tdd.md](references/clarity-tdd.md)
+
+### Verification (Automatic)
+
+I will verify:
+- [ ] Test file exists for each contract
+- [ ] All public functions have at least one test
+- [ ] `clarinet check` passes (no syntax errors)
+- [ ] `clarinet test` runs (tests fail as expected - RED phase)
+
+### Gate: Automated Verification
+
+When verification passes, we proceed automatically to Phase 3.
+
+**If verification fails:**
+1. I'll identify missing tests or issues
+2. Attempt to fix automatically
+3. Re-run verification
+4. Escalate to you if issues persist after 3 attempts
+
+---
+
+## Phase 3/5: Implementation
+
+**Purpose:** Write Clarity code to pass tests.
+
+### Steps
+
+1. **Implement Data Structures**
+   - Add `define-data-var` declarations
+   - Add `define-map` declarations
+   - Add `define-constant` values
+
+2. **Implement Functions One at a Time**
+   - Start with simplest function
+   - Run tests after each function
+   - Move to next when tests pass
+
+3. **Apply Best Practices**
+   - Use meaningful error codes (`err u100` with comments)
+   - Avoid unnecessary `begin` blocks
+   - Use `asserts!` for validation
+   - Keep functions focused
+
+4. **Iterate Until Green**
+   ```bash
+   clarinet test
+   ```
+   Continue until all tests pass.
+
+**Reference:** For CLI commands, see [references/clarity-cli.md](references/clarity-cli.md)
+
+### Verification (Automatic)
+
+I will verify:
+- [ ] All tests pass (`clarinet test` exits 0)
+- [ ] No syntax errors (`clarinet check` passes)
+- [ ] Best practices applied
+
+### Gate: Automated Verification
+
+When all tests pass, we proceed automatically to Phase 4.
+
+**If tests fail:**
+1. I'll analyze the failure
+2. Attempt to fix the implementation
+3. Re-run tests
+4. Escalate to you if issues persist after 3 attempts
+
+---
+
+## Phase 4/5: Verification
+
+**Purpose:** Ensure quality through coverage and security review.
+
+### Steps
+
+1. **Run Coverage Analysis**
+   ```bash
+   clarinet test --coverage
+   ```
+
+2. **Verify Coverage Threshold**
+   - Target: 90%+ line coverage
+   - Identify any uncovered functions
+
+3. **Security Review**
+   - Check for common vulnerabilities
+   - Review error handling
+   - Verify access control
+
+4. **Fix and Re-run**
+   - Add tests for uncovered code
+   - Fix security issues
+   - Re-verify until thresholds met
+
+**Reference:** For coverage commands, see [references/clarity-cli.md](references/clarity-cli.md)
+
+### Verification (Automatic)
+
+I will verify:
+- [ ] Coverage >= 90%
+- [ ] All functions tested
+- [ ] No obvious security issues
+
+### Auto-Fix Loop
+
+If coverage < 90%:
+1. Identify uncovered functions/lines
+2. Write additional tests
+3. Re-run coverage analysis
+4. Repeat up to 3 attempts
+5. Escalate if threshold not achieved
+
+### Gate: Automated + User Confirmation
+
+When automated checks pass, I'll present a security summary for your review.
+
+**What you'll review:**
+- Coverage report summary
+- Any security considerations
+- Confirmation to proceed to frontend
+
+---
+
+## Phase 5/5: Frontend
+
+**Purpose:** Integrate contract with web application.
+
+### Steps
+
+1. **Start Devnet**
+   ```bash
+   clarinet devnet start
+   ```
+   Local blockchain running at `localhost:3999`
+
+2. **Connect Wallet**
+   - Use `@stacks/connect` for wallet integration
+   - Handle wallet connection/disconnection
+
+3. **Call Contract Functions**
+   - Use `@stacks/transactions` for contract calls
+   - Handle transaction signing
+   - Process transaction results
+
+4. **Handle Results and Errors**
+   - Parse contract responses
+   - Display user-friendly messages
+   - Handle transaction failures
+
+**Reference:** For frontend patterns, see [references/clarity-frontend.md](references/clarity-frontend.md)
+
+### Verification (Manual)
+
+You verify:
+- [ ] Contract deployed to devnet
+- [ ] Wallet connects successfully
+- [ ] Contract calls work from frontend
+- [ ] Error handling works correctly
+
+### Gate: User Verification
+
+This is the final phase. You verify the integration works as expected.
+
+**Deployment options after verification:**
+- Stay on devnet for more testing
+- Deploy to testnet for public testing
+- Deploy to mainnet for production
+
+---
+
+## Navigation
+
+### Jumping Between Phases
+
+You can request to jump to any phase:
+- "Go to design" - Returns to Phase 1
+- "Skip to implementation" - Jumps to Phase 3
+- "Review tests" - Returns to Phase 2
+
+### Phase Skipping Warning
+
+**If you request to skip phases:**
+
+I'll warn: "Skipping [Phase X] increases risk. You'll need to complete [skipped verification] before deployment. Continue anyway?"
+
+If you confirm:
+- I'll track what was skipped
+- Required verification before deployment increases
+- Coverage threshold may increase (95%+ for skipped TDD)
+
+### Backward Navigation
+
+**If you want to revisit an earlier phase:**
+
+I'll ask: "This returns to [Phase X] and may require re-verification of later phases. Continue?"
+
+This ensures you understand that changes may cascade.
+
+---
+
+## Verification Behavior
+
+### Automatic Verification After Each Phase
+
+When you complete a phase, I automatically:
+1. Run verification checks (files, commands)
+2. Report summary: "All checks passed" or "X issues found"
+3. Offer details if issues exist
+
+### Auto-Fix Attempts
+
+When verification fails:
+1. **Attempt 1:** Identify issue, apply fix, re-verify
+2. **Attempt 2:** Try alternative fix, re-verify
+3. **Attempt 3:** Final attempt with different approach
+4. **Escalate:** Present issues and ask for your guidance
+
+### Issue Reporting
+
+**Summary format:**
+```
+Verification: 2 issues found
+- Missing test for `transfer` function
+- Coverage at 85% (target: 90%)
+
+Attempting auto-fix (1/3)...
+```
+
+**After fixes:**
+```
+Verification: All checks passed
+- Tests: 12/12 passing
+- Coverage: 94%
+
+Ready to proceed to [Next Phase].
+```
+
+---
+
+## Quick Reference
+
+### Essential Commands
+
+```bash
+# Project setup
+clarinet new my-project
+clarinet contract new my-contract
+
+# Development
+clarinet check                  # Syntax validation
+clarinet console                # Interactive REPL
+
+# Testing
+clarinet test                   # Run all tests
+clarinet test --coverage        # With coverage report
+
+# Deployment
+clarinet devnet start           # Local blockchain
+clarinet deployment apply -p deployments/default.devnet-plan.yaml
+```
+
+### Phase Summary
+
+| Phase | Purpose | Gate | Reference |
+|-------|---------|------|-----------|
+| 1. Design | Define requirements | User confirmation | [clarity-design.md](references/clarity-design.md) |
+| 2. Tests | Write tests first | Auto verification | [clarity-tdd.md](references/clarity-tdd.md) |
+| 3. Implement | Pass tests | Auto verification | [clarity-cli.md](references/clarity-cli.md) |
+| 4. Verify | Coverage + security | Auto + user | [clarity-cli.md](references/clarity-cli.md) |
+| 5. Frontend | Web integration | User verification | [clarity-frontend.md](references/clarity-frontend.md) |
+
+### Getting Help
+
+- "Show me design patterns" - Loads design reference
+- "How do I test this?" - Loads TDD reference
+- "What clarinet commands?" - Loads CLI reference
+- "Help with frontend" - Loads frontend reference
+
+---
+
+## Quality Standards
+
+This skill enforces:
+
+1. **TDD Required**: Tests must exist before implementation
+2. **90% Coverage**: Minimum threshold before deployment
+3. **Error Handling**: All public functions must handle errors
+4. **Security Review**: Manual review before mainnet deployment
+
+**Exceptions require explicit acknowledgment** and increase verification requirements.
+
+---
+
+*stacks-dev v0.1.0 | Apache-2.0 | [Report Issues](https://github.com/stacks-skills/stacks-skills/issues)*
