@@ -17,6 +17,12 @@ This roadmap delivers a Claude Code plugin for Stacks blockchain development wit
 
 **Dependencies:** None
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md - Create plugin structure, SKILL.md with frontmatter, optional directories
+- [ ] 01-02-PLAN.md - Validate with skills-ref and test plugin installation
+
 **Requirements:**
 - PLUG-01: Plugin has valid plugin.json with name, description, and skill references
 - PLUG-02: Plugin follows Claude Code plugin directory structure (skills/ at root, .claude-plugin/ for metadata only)
@@ -157,7 +163,7 @@ This roadmap delivers a Claude Code plugin for Stacks blockchain development wit
 
 | Phase | Status | Requirements | Completed |
 |-------|--------|--------------|-----------|
-| 1 - Plugin Foundation & Compliance | Pending | 11 | 0/11 |
+| 1 - Plugin Foundation & Compliance | Planning Complete | 11 | 0/11 |
 | 2 - Core Skill Structure | Pending | 8 | 0/8 |
 | 3 - Design & Planning Phase | Pending | 4 | 0/4 |
 | 4 - TDD Workflow & Contract Implementation | Pending | 8 | 0/8 |
@@ -183,4 +189,4 @@ If the single skill proves insufficient (context window issues, exceeds 500 line
 
 ---
 
-*Last updated: 2026-01-29*
+*Last updated: 2026-01-29 (Phase 1 planned)*
