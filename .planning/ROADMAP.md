@@ -83,6 +83,11 @@ Plans:
 
 **Dependencies:** Phase 2 (core skill structure must exist)
 
+**Plans:** 1 plan
+
+Plans:
+- [ ] 03-01-PLAN.md - Enhance clarity-design.md with design template, best practices checklist, and modular architecture
+
 **Requirements:**
 - DSGN-01: Skill guides user to write pseudo code before implementation
 - DSGN-02: Skill reviews designs against Clarity Book best practices (coding style, storage, upgradability)
