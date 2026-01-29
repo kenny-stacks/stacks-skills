@@ -170,6 +170,12 @@ Plans:
 
 **Dependencies:** Phase 5 (contracts must be deployed to devnet), Phase 4 (90%+ coverage gate must pass)
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 06-01-PLAN.md - Update clarity-frontend.md with v8+ patterns and post-conditions
+- [ ] 06-02-PLAN.md - Update SKILL.md Phase 5/5 with frontend workflow
+
 **Requirements:**
 - FRNT-01: Skill guides wallet integration using @stacks/connect
 - FRNT-02: Skill guides contract calls using @stacks/transactions
