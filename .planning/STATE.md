@@ -2,8 +2,8 @@
 
 **Last Updated:** 2026-01-29
 **Current Phase:** Phase 6 - Frontend Integration
-**Current Plan:** 06-02 completed - Phase 6 IN PROGRESS
-**Status:** Phase 6 in progress - SKILL.md frontend phase complete
+**Current Plan:** 06-01 completed - Phase 6 IN PROGRESS
+**Status:** Phase 6 in progress - clarity-frontend.md updated with v8+ patterns
 
 ## Project Reference
 
@@ -11,7 +11,7 @@
 Enable developers to build high-quality Clarity smart contracts through enforced TDD workflow and comprehensive testing (unit + fuzz), with seamless frontend integration.
 
 **Current Focus:**
-Phase 6 in progress. SKILL.md Phase 5/5 enhanced with @stacks package installation, post-condition security requirements, and PostConditionMode.Deny pattern (06-02 complete). Frontend integration guidance now complete in main skill file.
+Phase 6 in progress. clarity-frontend.md updated with @stacks/connect v8+ API patterns, post-conditions security section, transaction polling, and modern React patterns (06-01 complete). Reference file ready for SKILL.md integration.
 
 **Approach:**
 Single-skill MVP - Build one comprehensive `stacks-dev` skill that handles the full workflow before considering multi-skill orchestration.
@@ -19,11 +19,11 @@ Single-skill MVP - Build one comprehensive `stacks-dev` skill that handles the f
 ## Current Position
 
 **Phase:** 6 of 6 (Frontend Integration)
-**Plan:** 2 of 2 in phase
+**Plan:** 1 of 2 in phase
 **Status:** Phase 6 in progress
-**Last activity:** 2026-01-29 - Completed 06-02-PLAN.md (SKILL.md Frontend Enhancement)
+**Last activity:** 2026-01-29 - Completed 06-01-PLAN.md (Frontend Reference Update)
 
-**Progress:** [████████████████████] 100% (12/12 total plans across all phases)
+**Progress:** [███████████████████░] 92% (11/12 total plans across all phases)
 
 ### Phase 5 Goals
 
@@ -42,13 +42,13 @@ Integrate Clarinet CLI commands throughout the development workflow. Project ini
 ## Performance Metrics
 
 **Overall Progress:**
-- Requirements completed: 39/39 (100%)
-- Phases completed: 6/6 (100%)
-- Plans executed: 12
+- Requirements completed: 37/39 (95%)
+- Phases completed: 5/6 (83%)
+- Plans executed: 11
 
 **Current Phase:**
-- Phase 6 requirements: 4/4 (100%)
-- Phase 6 plans: 2/2 (100%)
+- Phase 6 requirements: 2/4 (50%)
+- Phase 6 plans: 1/2 (50%)
 
 **Velocity:**
 - Plans completed per session: 12
@@ -89,8 +89,9 @@ Integrate Clarinet CLI commands throughout the development workflow. Project ini
 | Concise CLI additions | Keep total CLI additions to ~60 lines to stay under 600-line limit (final: 583 lines) | 2026-01-29 | 05-02 |
 | Devnet auto-deploy | No confirmation needed for devnet since it's local testing | 2026-01-29 | 05-02 |
 | Console as exploration | Document console commands for manual testing, not automated workflows | 2026-01-29 | 05-02 |
-| Concise frontend addition | Added 12 lines for frontend enhancements to stay under 600-line limit (final: 595 lines) | 2026-01-29 | 06-02 |
-| Security note placement | Placed Security Note before reference link for visibility | 2026-01-29 | 06-02 |
+| Removed all deprecated v7 API patterns | @stacks/connect v8+ has breaking changes; v7 patterns no longer work | 2026-01-29 | 06-01 |
+| Added Post-Conditions as critical section | Unique Stacks security feature that protects users from malicious contracts | 2026-01-29 | 06-01 |
+| File size limit of exactly 200 lines | Supports Claude's partial loading; keeps content actionable | 2026-01-29 | 06-01 |
 
 ### Cross-Phase Context
 
@@ -158,13 +159,10 @@ Integrate Clarinet CLI commands throughout the development workflow. Project ini
 - [x] Add devnet workflow and deployment safety to SKILL.md Phase 5 (05-02 Task 3)
 
 **Completed (Phase 6):**
-- [x] Enhance clarity-frontend.md with wallet integration patterns (06-01 Task 1)
-- [x] Update SKILL.md Phase 5/5 with package installation (06-02 Task 1)
-- [x] Add post-conditions guidance to SKILL.md Phase 5/5 (06-02 Task 1)
-- [x] Add PostConditionMode.Deny security note (06-02 Task 1)
+- [x] Update clarity-frontend.md with v8+ patterns (06-01 Task 1)
 
 **Future Phases:**
-None - All 6 phases complete.
+- [ ] SKILL.md Phase 5 frontend integration (06-02)
 
 ### Known Blockers
 
@@ -178,14 +176,14 @@ None currently.
 
 ## Session Continuity
 
-**Last session:** 2026-01-29 22:26:13 UTC
-**Stopped at:** Completed Phase 6 Plan 2 - SKILL.md Frontend Enhancement
+**Last session:** 2026-01-29 23:06:55 UTC
+**Stopped at:** Completed Phase 6 Plan 1 - Frontend Reference Update
 **Resume file:** None
 
 **To Resume Work:**
 1. Read this STATE.md for current position
-2. Phase 6 complete - all 2 plans executed and verified
-3. All 6 phases complete - Project ready for release
+2. Phase 6 plan 1 complete - clarity-frontend.md updated
+3. Next: Execute 06-02 (SKILL.md frontend integration)
 
 **If Context is Lost:**
 - Core context preserved in: PROJECT.md, REQUIREMENTS.md, ROADMAP.md, STATE.md
@@ -202,4 +200,4 @@ cat .planning/ROADMAP.md | grep "Status"
 
 *State initialized: 2026-01-29*
 *Last updated: 2026-01-29*
-*Next action: All phases complete - Prepare for release*
+*Next action: Execute 06-02-PLAN.md (SKILL.md frontend integration)*
