@@ -109,6 +109,13 @@ Plans:
 
 **Dependencies:** Phase 3 (design phase outputs provide contract structure)
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Enhance clarity-tdd.md with collaborative TDD workflow, Vitest patterns
+- [ ] 04-02-PLAN.md — Create clarity-implementation.md with best practices patterns
+- [ ] 04-03-PLAN.md — Update SKILL.md phases 2-4 with TDD enforcement and coverage workflow
+
 **Requirements:**
 - TEST-01: Skill enforces tests-first workflow (write tests before contract implementation)
 - TEST-02: Skill guides writing unit tests using Clarinet SDK
@@ -120,11 +127,12 @@ Plans:
 - CONT-04: Skill applies upgradability patterns (modular architecture, dynamic principals)
 
 **Success Criteria:**
-1. User cannot proceed to contract implementation until tests are written
-2. Skill generates Clarinet SDK test files with comprehensive test cases covering contract functions
-3. Contract code passes all tests on first run (TDD loop: write test, implement to pass)
-4. Skill runs `clarinet test --coverage` and blocks progression if coverage < 90%
+1. Soft TDD enforcement redirects user to write tests before contract implementation
+2. Skill generates Clarinet SDK test files using collaborative scenario approval workflow
+3. Contract code passes all tests (TDD loop: write test, implement to pass)
+4. Skill runs `npm run test:coverage` (Vitest) and blocks progression if coverage < 90%
 5. Contract code follows all Clarity Book best practices (verified through skill's review step)
+6. User can override coverage gate with "proceed anyway" command
 
 ---
 
