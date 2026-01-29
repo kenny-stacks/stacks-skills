@@ -257,6 +257,117 @@ User requests CLI operation
         └── Devnet start → Suggest dedicated terminal, don't auto-background
 ```
 
+## Error Handling
+
+When `clarinet check` returns errors, interpret and respond appropriately.
+
+### Error Interpretation
+
+Parse `clarinet check` output to extract structured error information:
+
+```
+Raw error:
+error: expecting expression of type 'uint', found 'int'
+  --> contracts/counter.clar:15:5
+
+Interpreted format:
+- File: contracts/counter.clar
+- Line: 15, Column: 5
+- Type: Type mismatch
+- Issue: Expected uint, found int
+- Suggestion: Use (to-uint value) or change function signature to accept int
+```
+
+Common error categories:
+
+| Category | Pattern | Example |
+|----------|---------|---------|
+| Syntax | "unexpected token", "expected" | Missing parenthesis, invalid keyword |
+| Type | "expecting expression of type" | Wrong type passed to function |
+| Analysis | "use of unresolved" | Undefined variable or function |
+| Trait | "does not conform to trait" | Missing trait method implementation |
+
+### Auto-Fix Patterns
+
+These mechanical issues can be fixed automatically (up to 3 attempts):
+
+**1. Unnecessary begin blocks**
+```clarity
+;; Before (flagged by clarinet check)
+(define-public (get-value)
+  (begin
+    (ok counter)))
+
+;; After (auto-fix)
+(define-public (get-value)
+  (ok counter))
+```
+
+**2. unwrap-panic usage**
+```clarity
+;; Before (unsafe)
+(unwrap-panic (map-get? balances user))
+
+;; After (auto-fix with suggested error code)
+(unwrap! (map-get? balances user) (err u404))
+```
+
+**3. Obvious syntax fixes**
+```clarity
+;; Before: missing closing paren
+(define-data-var counter uint u0
+
+;; After: auto-fix
+(define-data-var counter uint u0)
+```
+
+### Manual Intervention Required
+
+These issues require user decision - explain the problem, don't auto-fix:
+
+| Issue Type | Why Manual | How to Present |
+|------------|------------|----------------|
+| Type signature changes | Affects API contract | "Function expects uint but receives int. Options: 1) Convert with to-uint, 2) Change signature to int" |
+| Undefined references | May need new definition | "Variable 'user-balance' not defined. Need to: 1) Add define-data-var, or 2) Check spelling" |
+| Logic errors | Intent unclear | "Condition appears inverted. Current: (< a b), did you mean (> a b)?" |
+| Trait conformance | Design decision | "Contract missing trait method 'transfer'. Add implementation or remove trait declaration?" |
+
+### Auto-Fix Loop
+
+```
+1. Run `clarinet check`
+   |
+2. Parse errors
+   |
+3. For each error:
+   |
+   ├── Is it auto-fixable? (begin blocks, unwrap-panic, syntax)
+   │   └── YES → Apply fix, continue to step 4
+   │   └── NO → Collect for user report
+   |
+4. Re-run `clarinet check`
+   |
+5. Repeat steps 2-4 (max 3 iterations)
+   |
+6. After 3 attempts OR no auto-fixable errors:
+   |
+   ├── All errors resolved → Report success
+   └── Errors remain → Present to user with explanations
+```
+
+**Escalation message format:**
+```
+clarinet check found errors that need your input:
+
+1. [Type Error] contracts/counter.clar:15
+   Expected uint, found int
+   → Options: Convert with (to-uint ...) or change function signature
+
+2. [Undefined] contracts/counter.clar:23
+   Variable 'user-balance' not found
+   → Did you mean 'user-balances' (defined on line 5)?
+```
+
 ## External References
 
 ### Clarinet Documentation
