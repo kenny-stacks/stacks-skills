@@ -142,6 +142,12 @@ Plans:
 
 **Dependencies:** Phase 4 (contracts and tests must exist to run CLI commands)
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 05-01-PLAN.md - Enhance clarity-cli.md with CLI orchestration (command automation, error handling, devnet lifecycle, deployment safety)
+- [ ] 05-02-PLAN.md - Update SKILL.md phases with CLI integration (project init, auto-validation, devnet workflow, deployment gates)
+
 **Requirements:**
 - CLAR-01: Skill guides project setup with `clarinet new` and `clarinet contracts new`
 - CLAR-02: Skill uses `clarinet check` for syntax and type validation
