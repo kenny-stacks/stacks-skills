@@ -63,10 +63,10 @@ Requirements for initial release. Single `stacks-dev` skill covering full workfl
 
 ### Frontend Integration
 
-- [ ] **FRNT-01**: Skill guides wallet integration using @stacks/connect
-- [ ] **FRNT-02**: Skill guides contract calls using @stacks/transactions
-- [ ] **FRNT-03**: Skill provides React/Next.js patterns for Stacks integration
-- [ ] **FRNT-04**: Skill guides network configuration using @stacks/network
+- [x] **FRNT-01**: Skill guides wallet integration using @stacks/connect
+- [x] **FRNT-02**: Skill guides contract calls using @stacks/transactions
+- [x] **FRNT-03**: Skill provides React/Next.js patterns for Stacks integration
+- [x] **FRNT-04**: Skill guides network configuration using @stacks/network
 
 ### Quality & Verification
 
@@ -151,10 +151,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLAR-03 | Phase 5 | Complete |
 | CLAR-04 | Phase 5 | Complete |
 | CLAR-05 | Phase 5 | Complete |
-| FRNT-01 | Phase 6 | Pending |
-| FRNT-02 | Phase 6 | Pending |
-| FRNT-03 | Phase 6 | Pending |
-| FRNT-04 | Phase 6 | Pending |
+| FRNT-01 | Phase 6 | Complete |
+| FRNT-02 | Phase 6 | Complete |
+| FRNT-03 | Phase 6 | Complete |
+| FRNT-04 | Phase 6 | Complete |
 
 **Coverage:**
 - v1 requirements: 39 total
@@ -163,4 +163,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-29*
-*Last updated: 2026-01-29 after Phase 5 completion*
+*Last updated: 2026-01-29 after Phase 6 completion*
