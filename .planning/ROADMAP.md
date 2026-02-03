@@ -45,10 +45,10 @@
   1. Developer can install @stacks/rendezvous via npm with no dependency conflicts
   2. Running `npx rv --version` returns version 0.13.1 successfully
   3. Node.js version compatibility (20/22/24) is documented in installation instructions
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 07-01: TBD
+- [ ] 07-01-PLAN.md — Document Rendezvous installation instructions in README
 
 #### Phase 8: Reference Documentation
 **Goal**: Create comprehensive property-based testing patterns reference for developers
