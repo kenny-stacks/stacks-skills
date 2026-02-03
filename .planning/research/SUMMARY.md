@@ -1,594 +1,440 @@
-# Research Summary: Stacks Skills Plugin
+# Research Summary: Stacks Skills v1.1
 
 **Project:** stacks-skills
-**Date:** 2026-01-29
-**Purpose:** Claude Code plugin for Stacks blockchain development with enforced TDD workflow
+**Date:** 2026-02-03
+**Purpose:** Rendezvous fuzz testing integration + trigger expansion for broader auto-invocation
 
 ## Executive Summary
 
-Claude Code skills plugins are file-based systems using Markdown with YAML frontmatter, following the Agent Skills open standard with Claude-specific extensions. The recommended architecture for this multi-skill Stacks development plugin is an **orchestrator-coordinator pattern**: a primary `stacks` orchestrator skill routes tasks to seven specialized domain skills (clarity-design, clarity-contract, clarity-unit-tests, clarity-fuzz, clarity-coverage, clarinet, stacks-frontend), each owning clear phase boundaries and enforcing quality gates.
+Version 1.1 adds two focused enhancements to the existing 5-phase TDD workflow: **Rendezvous property-based fuzz testing** and **expanded skill trigger keywords** for improved auto-invocation. The research reveals that Rendezvous integration requires minimal stack additions - the `@stacks/rendezvous` CLI (v0.13.1) is a standalone tool that complements rather than replaces existing Vitest unit tests. Critically, fuzz testing should be integrated as a **parallel validation track within Phase 4 (Verification)**, not as a separate phase, to maintain workflow simplicity while adding property-based invariant testing alongside unit test coverage.
 
-The critical success factor is **progressive disclosure**: skills load metadata (~100 tokens) at startup, full instructions (<5k tokens) when activated, and supporting files only when referenced. This prevents context window explosion while maintaining focused expertise per skill. For Stacks development specifically, the TDD workflow naturally maps to skill boundaries, with the coverage skill enforcing a 90%+ threshold gate before frontend integration can proceed.
+The recommended approach treats fuzz testing as an additional quality signal: unit tests verify specific scenarios (example-based testing), while fuzz tests verify universal properties (invariant testing). Both run after implementation, both inform the quality gate, and both must pass before frontend integration. The key architectural insight is that fuzz tests live in `.tests.clar` files alongside contracts (not in the `tests/` directory with unit tests), creating clean separation while maintaining a unified verification step.
 
-**Key architectural decision**: Start with a SINGLE skill for MVP validation. Only add orchestration if concrete limitations emerge. The research strongly warns: "The recommendation is to start simple, as single-agent architecture handles way more use cases than expected." Premature orchestration complexity is the #1 critical pitfall that causes rewrites.
+For trigger expansion, the critical risk is **over-generalization** - adding generic terms like "blockchain" or "smart contract" causes false positives on Ethereum/Solana/Cosmos questions. The research strongly recommends conservative expansion: keep triggers Stacks-specific ("Stacks blockchain", "Clarity smart contracts") and test against non-Stacks prompts before deployment. The current 163-character description has room for targeted additions without sacrificing specificity.
 
-## Stack
+## Key Findings
 
-**File Formats:**
-- `SKILL.md` - Skill definition with YAML frontmatter + Markdown instructions (required per skill)
-- `plugin.json` - Plugin manifest with metadata (required, goes in `.claude-plugin/` directory only)
-- Markdown `.md` files - Reference documentation, templates (loaded on-demand)
-- Any scripting language - Executable logic (bash, python, node) in `scripts/` subdirectories
+### Recommended Stack Additions
 
-**Directory Structure (Multi-Skill Plugin):**
-```
-stacks-skills/
-├── .claude-plugin/
-│   └── plugin.json                    # ONLY the manifest goes here
-├── skills/                             # All skills at plugin root
-│   ├── stacks/                         # Orchestrator skill
-│   ├── clarity-design/                 # Design phase
-│   ├── clarity-contract/               # Implementation
-│   ├── clarity-unit-tests/             # TDD workflow
-│   ├── clarity-fuzz/                   # Property testing
-│   ├── clarity-coverage/               # Coverage gating
-│   ├── clarinet/                       # CLI orchestration
-│   └── stacks-frontend/                # Frontend integration
-├── agents/                             # Optional: custom subagents
-├── hooks/                              # Optional: lifecycle hooks
-└── README.md
+**Minimal integration for Rendezvous fuzz testing:**
+
+The existing v1.0 stack (Vitest + Clarinet SDK + @stacks/transactions) requires **only one addition**:
+
+- **@stacks/rendezvous v0.13.1** - Standalone CLI for property-based fuzz testing
+  - Purpose: Execute property tests and invariant tests defined in Clarity
+  - Integration: Runs independently via `npx rv` commands
+  - Dependencies: Bundles fast-check ^4.3.0, @stacks/clarinet-sdk ^3.12.0, @stacks/transactions ^7.2.0 internally
+  - No conflicts: All dependencies are bundled, not peer dependencies
+
+**What NOT to add:**
+- fast-check (bundled within Rendezvous)
+- Separate test runner configuration (Rendezvous is a CLI tool, not a plugin)
+- TypeScript type definitions (Rendezvous is CLI-only)
+- Coverage reporter integration (fuzz tests measure property satisfaction, not line coverage)
+
+**Installation:**
+```bash
+npm install -D @stacks/rendezvous
 ```
 
-**Critical Constraints:**
-1. Only `plugin.json` goes inside `.claude-plugin/` - everything else MUST be at plugin root
-2. Skills use directory structure (`skill-name/SKILL.md`), not flat files
-3. Namespace isolation: Skills invoked as `/plugin-name:skill-name`
-4. Keep SKILL.md under 500 lines; move detailed docs to `references/` subdirectory
+**Node.js compatibility:** Requires Node.js 20, 22, or 24 (already compatible with existing v1.0 stack).
 
-**SKILL.md Format:**
-```yaml
----
-name: skill-name                        # Required: lowercase, hyphens, 1-64 chars
-description: What and when to use       # Required: 1-1024 chars, include keywords
-allowed-tools: Read Bash Grep Glob      # Optional: pre-approved tools
-disable-model-invocation: false         # Optional: prevent auto-invoke
-user-invocable: true                    # Optional: show in / menu
-context: inline                         # Optional: inline (default) or fork
----
+### Expected Features
 
-# Main Instructions
-[Step-by-step instructions Claude follows]
+**Table Stakes (Must Have for fuzz testing):**
 
-For detailed patterns, see [reference.md](references/reference.md)
-```
-
-**String Substitutions:**
-- `$ARGUMENTS` or `$0, $1, $2...` - Pass arguments to skills
-- `${CLAUDE_SESSION_ID}` - Current session ID
-- `!`command`` - Inject command output before Claude sees prompt (dynamic context)
-
-**Validation Tools:**
-- `skills-ref validate ./skill-name` - Official Agent Skills validator
-- `/plugin validate` - Claude Code built-in validation
-- `claude --debug --plugin-dir ./stacks-skills` - Debug plugin loading
-
-## Features
-
-**Table Stakes (Must Have):**
-- SKILL.md with valid frontmatter (`name`, `description` required)
-- Clear, keyword-rich descriptions for auto-invocation ("Use when working with Clarity contracts...")
-- Focused scope (one skill per distinct task/phase)
-- Progressive disclosure (metadata always loaded, full content when invoked, references on-demand)
-- Plugin structure with proper namespace (`/stacks-skills:clarity-tdd`)
-- Invocation control (`disable-model-invocation: true` for user-only skills)
-- File reference paths (relative from skill root)
+| Feature | Rationale | Complexity |
+|---------|-----------|------------|
+| Property-based test execution | Core feature - verifies function behavior across random inputs | Medium |
+| Invariant test execution | Core feature - verifies state consistency across random call sequences | Medium |
+| Seed-based replay | Critical for debugging - enables deterministic reproduction of failures | Low |
+| Shrinking | Essential for debugging - reduces failing inputs to minimal counterexample | High (use Rendezvous built-in) |
+| Test discarding | Efficiency - skip tests with invalid inputs via `(ok false)` | Low |
+| Context tracking | Record function call history for sophisticated invariants | Medium |
+| Basic type generation | Generate random values for Clarity primitives (uint, int, bool, principal, etc.) | Medium |
 
 **Differentiators (High Value):**
-- **Dynamic context injection** - Use `!`clarinet test --coverage`` to inject real-time data
-- **Argument support** - `$ARGUMENTS` for flexible inputs (`/migrate-component SearchBar React Vue`)
-- **Subagent execution** - `context: fork` with `agent: Explore` for isolated research tasks
-- **Supporting files for composition** - `scripts/`, `references/`, `assets/` keep SKILL.md focused
-- **Tool restrictions** - `allowed-tools: Read, Grep, Glob` for read-only analysis
-- **Quality gates as skill boundaries** - Coverage skill blocks frontend skill until 90%+ achieved
-- **Examples and templates** - Concrete input/output examples guide Claude's behavior
-- **Multi-skill orchestration** - Orchestrator routes to specialized skills based on workflow phase
+
+| Feature | Value Proposition | Complexity |
+|---------|------------------|------------|
+| Dialers (pre/post hooks) | Execute JavaScript for event verification, SIP compliance testing | High |
+| Custom manifest support | Use test doubles for contracts with restrictive dependencies | Medium |
+| Trait reference handling | Automatically select trait implementations for testing | Medium |
+| Bail on first failure | Faster feedback during debugging (skip shrinking) | Low |
+| Stateful fuzzing | Maintain contract state across function call sequences (invariant testing) | Medium |
 
 **Anti-Features (Explicitly Avoid):**
-- Duplicate reference docs (link to official docs instead)
-- Monolithic "do everything" skills (split into focused skills)
-- Deep reference chains (keep references one level deep)
-- Hard-coded paths or URLs (use relative paths, arguments, or dynamic injection)
-- Auto-invoke for destructive operations (`disable-model-invocation: true` for deploy/delete)
-- Generic skill names ("helper", "utils" → use "testing", "deploying", "analyzing")
-- Missing argument hints (add `argument-hint: [issue-number]` in frontmatter)
-- Ignoring context budget (keep SKILL.md under 500 lines)
 
-**Feature Dependencies:**
+- **Mainnet fuzz testing** - Use Simnet only (matches v1.0 devnet focus)
+- **Automatic invariant generation** - Developers must define domain-specific invariants
+- **Embedded fuzzer implementation** - Use Rendezvous CLI exclusively
+- **GUI/visual test runner** - Terminal-based workflow only
+- **JavaScript test authoring** - Fuzz tests written in Clarity, not TypeScript
+- **Mutation testing** - Out of scope (different testing methodology)
+
+**Property Testing Patterns (documented in research):**
+
+1. Symmetric operations (reversibility)
+2. State transition invariants (balance consistency, supply conservation)
+3. Context-based invariants (execution history)
+4. Comparison with reference implementation
+5. Boundary value testing
+6. Idempotency checks
+7. Postcondition verification
+8. Test discarding with preconditions
+9. Event emission verification (via dialers)
+10. Cross-contract interaction testing (via test doubles)
+
+### Architecture Approach
+
+**Recommended Integration: Parallel Validation Track in Phase 4**
+
+Fuzz testing should be added **within Phase 4 (Verification)** as a parallel track alongside unit tests, NOT as a separate phase.
+
+**Current Phase 4 workflow:**
 ```
-clarity-design
-    ↓
-clarity-unit-tests (requires: design artifacts exist)
-    ↓
-clarity-contract (requires: tests exist, implements to pass tests)
-    ↓
-clarity-fuzz (requires: contract exists, adds property tests)
-    ↓
-clarity-coverage (requires: all tests exist, measures coverage)
-    ↓ (gate: 90%+ coverage)
-stacks-frontend (requires: contract deployed to devnet, coverage passed)
+1. Run unit tests (vitest run)
+2. Generate coverage report (vitest --coverage)
+3. Check 90% threshold
+4. User security review
+→ Proceed to Phase 5 or return to Phase 3
 ```
 
-**MVP Recommendation:**
-1. Plugin structure with valid manifest
-2. Orchestrator skill (`stacks`) that routes to specialized skills
-3. Phase-specific skills: clarity-design, clarity-unit-tests, clarity-contract, clarity-fuzz, clarity-coverage, stacks-frontend
-4. Clarinet helper skill (standalone, no dependencies)
-5. Dynamic context injection for test results, coverage reports
-6. Quality gates enforced at skill boundaries
-
-**Defer to Post-MVP:**
-- Hooks integration (automate linting/formatting after file writes)
-- Subagent forking (main conversation sufficient for MVP)
-- Visual output generation (interactive HTML reports)
-- Session-specific logging
-- LSP integration
-
-## Architecture
-
-**Recommended Pattern:** Orchestrator-Coordinator
-
+**Enhanced Phase 4 workflow:**
 ```
-stacks (orchestrator)
-│
-├─ Context Management Layer
-│  └─ Loads relevant skills based on task analysis
-│
-├─ Routing Layer
-│  ├─ Analyzes user intent
-│  ├─ Determines workflow phase
-│  └─ Delegates to specialized skill
-│
-└─ Specialized Skills (Domain Experts)
-   ├─ clarity-design      → Contract design & best practices
-   ├─ clarity-contract    → Clarity code implementation
-   ├─ clarity-unit-tests  → Test-driven development
-   ├─ clarity-fuzz        → Property testing & invariants
-   ├─ clarity-coverage    → Coverage analysis & gating
-   ├─ clarinet            → CLI orchestration & devnet
-   └─ stacks-frontend     → Frontend integration
+1. Run unit tests (vitest run)
+   └── Validates specific scenarios with predetermined inputs
+
+2. Run fuzz tests (npx rv) - PARALLEL track
+   ├── Property-based tests (npx rv . contract test)
+   └── Invariant tests (npx rv . contract invariant)
+
+3. Aggregate results
+   ├── Unit test results (pass/fail)
+   ├── Fuzz test results (pass/fail, seed if failure)
+   └── Combined coverage (Vitest tracks unit tests)
+
+4. Check 90% coverage threshold
+   └── If failed: Identify gaps, suggest tests (unit or fuzz)
+
+5. User security review
+   └── Present both unit and fuzz findings
+
+→ Proceed to Phase 5 or return to Phase 2/3
 ```
+
+**Why NOT a separate phase:**
+
+| Option | Pros | Cons | Verdict |
+|--------|------|------|---------|
+| **Phase 4.5 (between Verification and Frontend)** | Preserves existing numbering | Creates unnecessary proliferation; frontend waits for fuzz tests | REJECTED |
+| **Phase 6 (new final phase)** | Clean separation | Quality gate too late; wastes frontend effort if bugs found | REJECTED |
+| **Enhanced Phase 4 (RECOMMENDED)** | Unified verification concept; parallel execution; single quality gate | Slightly more complex Phase 4 | SELECTED |
 
 **Component Boundaries:**
 
-| Component | Responsibility | Context Type | Agent Type |
-|-----------|----------------|--------------|------------|
-| stacks (orchestrator) | Route tasks, coordinate phases, maintain state | inline | inherit |
-| clarity-design | Pseudo-code, logic flow, best practices | fork | Explore |
-| clarity-contract | Write Clarity smart contract code | inline | inherit |
-| clarity-unit-tests | TDD implementation with Clarinet SDK | inline | inherit |
-| clarity-fuzz | Property tests, invariant validation | fork | general-purpose |
-| clarity-coverage | Coverage analysis, enforce 90%+ gate | fork | Explore |
-| clarinet | CLI commands, setup, devnet, deployment | inline | inherit |
-| stacks-frontend | Stacks.js integration, wallet, contract calls | inline | inherit |
+| Component | File Location | Purpose | Execution |
+|-----------|---------------|---------|-----------|
+| Unit tests | `tests/*.test.ts` | Specific scenario validation | Vitest |
+| Fuzz tests | `contracts/*.tests.clar` | Property/invariant validation | Rendezvous |
+| Coverage | `coverage/` directory | Line coverage metrics | Vitest |
 
-**Data Flow:**
+**Key architectural insight:** Fuzz tests live alongside contracts (`.tests.clar`), not in `tests/` directory. This separation is intentional and clean.
 
-**Phase 1 - Design:**
-```
-User request → stacks orchestrator
-  → clarity-design (fork: Explore agent, read-only)
-  → Returns: design document with pseudo-code
-  → orchestrator presents to user
-```
+**Phase 2 clarification:**
 
-**Phase 2 - Implementation:**
-```
-User approval → stacks orchestrator
-  → clarity-contract (inline, full tools)
-  → clarity-unit-tests (inline, TDD loop)
-  → Iterative: write test → implement → verify
-```
+Rename "Phase 2: Tests" to "Phase 2: Unit Tests" to clarify scope. Add forward reference: "Fuzz tests are added later in Phase 4 for property verification."
 
-**Phase 3 - Validation:**
-```
-Implementation complete → stacks orchestrator
-  → clarity-fuzz (fork: general-purpose, isolated context)
-  → clarity-coverage (fork: Explore agent, read-only)
-  → Both run in parallel, return summary
-  → orchestrator gates on coverage threshold
-```
+**SKILL.md modifications required:**
 
-**Phase 4 - Deployment:**
-```
-Tests passing + coverage met → stacks orchestrator
-  → clarinet (inline, Bash access for CLI)
-  → Deployment steps with verification
-```
+- Update workflow overview (Phase 4 description)
+- Clarify Phase 2 scope (unit tests only)
+- Major rewrite of Phase 4 (split into Unit + Fuzz subsections)
+- Add Quick Reference commands for Rendezvous
+- Create new reference file: `clarity-fuzz.md` (~200-250 lines)
 
-**Coordination Mechanisms:**
-1. **Task Delegation** - Orchestrator uses Skill tool to invoke specialized skills
-2. **Parallel Execution** - Validation phase spawns fuzz + coverage as concurrent background subagents
-3. **Sequential Dependencies** - Orchestrator enforces workflow order and quality gates
-4. **User Communication** - Orchestrator presents phase transitions and gate results before proceeding
+Estimated changes: +90 lines total (within 600-line budget with compression elsewhere).
 
-**State Management:**
-- **Orchestrator context:** Current phase, quality gate results, user approvals, subagent summaries
-- **Inline skills:** Share orchestrator context (contract, unit-tests, clarinet, frontend)
-- **Forked skills:** Isolated context, return summary only (design, fuzz, coverage)
-- **Persistence:** Write phase results to `.planning/design/`, `.planning/tests/`, `.planning/coverage/`, `.planning/fuzz/`
+### Critical Pitfalls
 
-**Context Management:**
+**From Fuzz Testing Integration:**
 
-Token Budget Allocation (assuming ~100K window):
-- System Prompt: 5K (Claude Code base + orchestrator)
-- Conversation History: 40K
-- Active Skills: 10K (1-2 specialized skills at a time)
-- Codebase Context: 30K (contract code, tests)
-- Tool Results: 10K
-- Reserve: 5K
+1. **Fuzz-Before-Design (CRITICAL)** - Running Rendezvous before properties are defined generates meaningless tests
+   - **Prevention:** Define invariants during Design phase (Phase 1). Document "table stakes" invariants (balance >= 0, supply constant). Fuzz tests come AFTER unit tests prove basic behavior.
+   - **Phase Impact:** Phase 1 (Design) + Phase 2 (Tests)
 
-Progressive Disclosure Strategy:
-- **Design Phase:** orchestrator + clarity-design = ~8K tokens, summary result = 500 tokens
-- **Implementation Phase:** orchestrator + contract + tests = ~12K tokens, codebase grows
-- **Validation Phase:** orchestrator + summaries only = ~5K tokens (subagents forked)
-- **Deployment Phase:** orchestrator + clarinet = ~7K tokens
+2. **TDD Confusion (CRITICAL)** - Treating fuzz tests as replacement for unit tests breaks RED-GREEN-REFACTOR cycle
+   - **Prevention:** Fuzz tests complement, not replace unit tests. Unit tests = concrete examples. Fuzz tests = universal properties. Always write unit tests first (TDD), then add fuzz tests.
+   - **Phase Impact:** Phase 2 (Tests)
 
-## Pitfalls
+3. **Property Definition Failure (CRITICAL)** - Writing properties too weak (always pass) or too strong (always fail) makes fuzz tests useless
+   - **Prevention:** Include property examples in `clarity-fuzz.md`. Start with simple invariants: "balance never negative", "total supply constant". Test properties manually before fuzzing.
+   - **Phase Impact:** Phase 2 (Tests) + Phase 4 (Verification)
 
-**CRITICAL PITFALLS (cause rewrites/major refactoring):**
+4. **Workflow Integration Ambiguity (MODERATE)** - Unclear when to run Rendezvous vs Vitest causes confusion
+   - **Prevention:** Document clear workflow: Phase 2 = unit tests (Vitest), Phase 4 = coverage (Vitest) + fuzz testing (Rendezvous). Fuzz tests are verification, not TDD.
+   - **Phase Impact:** All phases (workflow clarity)
 
-### 1. Unnecessary Orchestration Complexity
-**What:** Building complex multi-skill orchestration when a single skill would suffice.
+5. **Resource Consumption Shock (MODERATE)** - Fuzz tests take minutes vs seconds for unit tests; CI pipelines timeout
+   - **Prevention:** Document expected runtime. Default `--runs 100` for development, `--runs 1000+` for CI. Run fuzz tests separately from unit tests. Consider `--bail` for faster failure.
+   - **Phase Impact:** Phase 4 (Verification) + CI integration
 
-**Why Critical:** Wasted weeks building coordination logic only to discover improved prompting on one skill achieved equivalent results.
+6. **Coverage Interpretation Conflict (MODERATE)** - Conflating Vitest code coverage with fuzz test coverage
+   - **Prevention:** Clarify: Vitest coverage = lines executed. Fuzz coverage = state space explored. Both are needed. 90% Vitest coverage doesn't mean fuzz tests are comprehensive.
+   - **Phase Impact:** Phase 4 (Verification)
 
-**Prevention:**
-- **START WITH A SINGLE SKILL FOR MVP**
-- Add orchestration ONLY when you hit concrete limitations
-- Ask: "What specific failure happens without orchestration?"
-- Validate that simple sequential execution truly doesn't work
+**From Trigger Expansion:**
 
-**Detection:** Orchestrator mostly calls skills in fixed sequence; users run skills manually instead.
+7. **Trigger Over-Generalization (CRITICAL)** - Expanding keywords to "blockchain" or "smart contract" causes false positives on other chains
+   - **Prevention:** Keep triggers **Stacks-specific**: "Stacks", "Clarity", "Clarinet". Add context: "Stacks blockchain", "Clarity smart contracts". Test against non-Stacks prompts.
+   - **Test against:** "Help me deploy an Ethereum smart contract" (should NOT trigger), "How do I test Solidity contracts?" (should NOT trigger)
+   - **Phase Impact:** Trigger expansion milestone (v1.1)
 
-**Phase Impact:** Foundation/Architecture - get this wrong early, rebuild entire system.
+8. **"Testing" Keyword Ambiguity (MODERATE)** - Adding standalone "testing" or "TDD" activates on general testing questions
+   - **Prevention:** Combine testing terms with Stacks context: "Clarity contract testing with Clarinet". Don't use standalone "TDD" or "testing".
+   - **Test against:** "How do I write unit tests for my API?" (should NOT trigger)
+   - **Phase Impact:** Trigger expansion milestone (v1.1)
 
-### 2. Context Window Explosion
-**What:** Skills load massive amounts of content, causing performance degradation and token exhaustion.
+9. **Overly Broad File Extension Triggers (MODERATE)** - Triggering on `.test.ts` alone activates on any TypeScript test file
+   - **Prevention:** Don't trigger on `.test.ts` alone. DO trigger on `.clar` files (Clarity-specific) and `Clarinet.toml` presence.
+   - **Phase Impact:** Trigger expansion milestone (v1.1)
 
-**Prevention:**
-- Keep SKILL.md under 500 lines
-- Move detailed reference to separate files loaded on-demand
-- Design skills to target specific files, not broad exploration
-- Use `context: fork` for research-heavy tasks
-- Test with `/context` to see actual token consumption
-
-**Detection:** `/context` shows character budget warnings; auto-compaction triggers; Claude stops following instructions mid-execution.
-
-**Phase Impact:** Every phase - degrades all skill performance.
-
-### 3. Skill Namespace Conflicts
-**What:** Multiple plugins define same skill name, creating ambiguity or silent failures.
-
-**Prevention:**
-- Plugin skills ALWAYS namespaced: `/my-plugin:skill-name`
-- Understand precedence: enterprise > personal > project
-- Use descriptive plugin names: `/stacks-dev:init` not `/dev:init`
-- Test in clean environment
-
-**Detection:** Skill works in one environment, fails in another; Claude invokes unexpected version.
-
-**Phase Impact:** Distribution - catastrophic during rollout.
-
-### 4. Verification Gap
-**What:** Skills produce plausible but incorrect output because Claude can't verify its own work.
-
-**Prevention:**
-- Include verification steps IN skill instructions
-- Provide test cases, expected outputs, examples
-- Use `allowed-tools` to grant Bash for running tests
-- Design skills to produce testable artifacts
-
-**Detection:** High error rate; every execution requires manual verification; users lose trust.
-
-**Phase Impact:** Testing/MVP - can't confidently release without verification.
-
-### 5. Permission Ambiguity
-**What:** Skills require specific tools but don't declare them, causing permission prompts or failures.
-
-**Prevention:**
-- Use `allowed-tools` frontmatter to declare required tools
-- Be specific: `allowed-tools: "Bash(npm test *), Bash(git commit *)"` not `Bash`
-- Test with restrictive permission settings
-- Document requirements in README
-
-**Detection:** Skills work in dev, fail in production; excessive permission prompts; security audit failures.
-
-**Phase Impact:** Security/Deployment - can block production rollout.
-
-### 6. Bloated CLAUDE.md Loading
-**What:** Skill descriptions exceed character budget; some skills excluded from context.
-
-**Prevention:**
-- Keep SKILL.md under 500 lines
-- Use progressive disclosure
-- Set `SLASH_COMMAND_TOOL_CHAR_BUDGET` if needed
-- Run `/context` to check for warnings
-
-**Detection:** `/context` shows excluded skills; Claude doesn't auto-invoke; incomplete skill list in `/help`.
-
-**Phase Impact:** Performance/Scaling - works with 5 skills, breaks with 20.
-
-### 7. Insufficient Skill Description Specificity
-**What:** Vague descriptions cause false positives (wrong skill triggers) or false negatives (skill never triggers).
-
-**Prevention:**
-- Include specific trigger phrases in description
-- Test with realistic user prompts
-- Be specific about scope: "Stacks blockchain Clarity contracts" not "smart contracts"
-- Use `disable-model-invocation: true` for sensitive skills
-
-**Detection:** Skill fires on wrong tasks; users must manually invoke with `/skill-name`; overlapping descriptions.
-
-**Phase Impact:** Usability/Refinement - makes well-architected skills unusable.
-
-### 8. Subagent Context Mismatch
-**What:** Using `context: fork` for skills needing conversation history, or NOT using it for exploration tasks.
-
-**Prevention:**
-- Use `context: fork` for: research, exploration, independent verification
-- DON'T use for: skills needing conversation history, sequential workflows
-- Test both modes to understand behavior
-
-**Detection:** Skill fails with "I don't have context about..."; main context fills rapidly; unexpected behavior.
-
-**Phase Impact:** Architecture - changing context mode later requires skill redesign.
-
-**MODERATE PITFALLS:**
-- Missing argument validation (cryptic failures on wrong input)
-- Hook timing misunderstanding (hooks fire deterministically; instructions are advisory)
-- LSP server binary assumptions (plugin installs but features don't work)
-- Circular skill dependencies (infinite loops)
-- Environment variable dependency (silent failures in different environments)
-- Marketplace distribution format errors (works locally, fails when distributed)
-- Over-reliance on pre-existing knowledge (Claude's training data is stale)
-
-**MINOR PITFALLS:**
-- Missing `argument-hint` frontmatter
-- Unclear skill vs command terminology
-- No README or usage documentation
-- Version field neglect
-- Missing license information
+10. **Description Length Explosion (MODERATE)** - Adding many keywords pushes skill over 1024 char limit
+    - **Prevention:** Keep description under 1024 chars (spec limit). Focus on 3-5 key trigger phrases. Use natural language, not keyword stuffing.
+    - **Current status:** 163 chars - room to grow, but prioritize clarity over coverage
+    - **Phase Impact:** Trigger expansion milestone (v1.1)
 
 ## Implications for Roadmap
 
-### Suggested Phase Structure
+### Recommended Phase Structure for v1.1
 
-**IMPORTANT: Start with Single Skill MVP, NOT full orchestration**
+Version 1.1 is an **enhancement milestone**, not a ground-up rebuild. The existing 5-phase workflow remains intact, with targeted additions.
 
-Based on the critical pitfall research, the roadmap should follow this approach:
+#### Phase 1: Stack Integration
+**Duration:** 1-2 days
+**Delivers:** Rendezvous package added to project, installation documented
 
-#### Phase 1: Single-Skill MVP (Week 1-2)
-**Goal:** Validate that Claude Code skills can effectively guide Stacks/Clarity development.
+**Tasks:**
+- Add `@stacks/rendezvous` to package.json
+- Update installation instructions in SKILL.md
+- Verify Node.js version compatibility (20/22/24)
 
-**Components:**
-- Basic plugin structure (`plugin.json`, directory layout)
-- ONE comprehensive skill that handles the full workflow (design → test → implement → validate)
-- Test with real Clarity contract development
+**Dependencies:** None (isolated change)
 
-**Success Criteria:**
-- Single skill successfully guides TDD workflow
-- No context window issues
-- Clear verification of outputs
+**Research needs:** SKIP (stack research complete)
 
-**Rationale:** Research strongly warns against premature orchestration. "The recommendation is to start simple, as single-agent architecture handles way more use cases than expected." Validate the concept before investing in coordination complexity.
+#### Phase 2: Reference Documentation
+**Duration:** 2-3 days
+**Delivers:** `clarity-fuzz.md` reference file with property testing patterns
 
-#### Phase 2: Split Into Core Skills (Week 3-4) - ONLY IF NEEDED
-**Goal:** If Phase 1 hits concrete limitations, decompose into specialized skills.
+**Tasks:**
+- Create `skills/stacks-dev/references/clarity-fuzz.md`
+- Document 10 property testing patterns (from FEATURES-FUZZ-TESTING.md)
+- Include examples for property tests vs invariant tests
+- Add seed-based reproduction workflow
+- Document common invariants (balance consistency, supply conservation)
 
-**Components:**
-- `clarity-design` - Design phase skill
-- `clarity-tdd` - Combined testing + implementation skill (keep TDD loop tight)
-- `clarinet` - CLI operations skill
+**Dependencies:** Phase 1 (installation context)
 
-**Triggers to proceed:**
-- Single skill exceeds 500 lines and can't be condensed
-- Context window fills during normal usage
-- Distinct phases need different tool permissions
-- Users report confusion from too much in one skill
+**Research needs:** SKIP (patterns documented in FEATURES-FUZZ-TESTING.md)
 
-**Rationale:** Only split when you hit actual problems, not anticipated ones.
+**Size estimate:** 200-250 lines
 
-#### Phase 3: Advanced Testing Skills (Week 5-6) - OPTIONAL
-**Goal:** Add specialized testing if TDD skill proves insufficient.
+#### Phase 3: SKILL.md Workflow Integration
+**Duration:** 3-4 days
+**Delivers:** Updated SKILL.md with Phase 4 enhancement and Phase 2 clarifications
 
-**Components:**
-- `clarity-fuzz` - Property testing with Rendezvous
-- `clarity-coverage` - Coverage analysis and gating
+**Tasks:**
+- Rename Phase 2: "Tests" → "Unit Tests"
+- Add forward reference in Phase 2 to fuzz tests
+- **Major rewrite:** Phase 4 (Verification)
+  - Split into Unit Tests + Fuzz Tests subsections
+  - Add parallel execution description
+  - Add fuzz failure interpretation guide
+  - Reference clarity-fuzz.md for patterns
+- Update workflow overview diagram
+- Add Rendezvous commands to Quick Reference
 
-**Integration:**
-- These skills can be standalone, invoked directly by users
-- NO orchestrator needed yet - user drives workflow
+**Dependencies:** Phase 2 (reference file must exist)
 
-**Triggers to proceed:**
-- Coverage enforcement becomes complex enough to warrant separate skill
-- Fuzz testing patterns are reusable enough to justify extraction
+**Research needs:** SKIP (architecture research complete)
 
-#### Phase 4: Orchestrator (Week 7-8) - ONLY IF COMPLEXITY DEMANDS IT
-**Goal:** Add orchestration if coordination complexity becomes user burden.
+**Estimated changes:** +90 lines (requires compression elsewhere to stay under 600-line target)
 
-**Components:**
-- `stacks` orchestrator skill that routes to specialized skills
-- Quality gates enforced at skill boundaries
+#### Phase 4: Trigger Expansion
+**Duration:** 2-3 days
+**Delivers:** Updated skill description with improved auto-invocation coverage
 
-**Triggers to proceed:**
-- Users frequently invoke skills in wrong order
-- Quality gate enforcement (coverage before frontend) is manual burden
-- 5+ skills exist and workflow coordination is complex
+**Tasks:**
+- Expand description from 163 chars to ~250-300 chars
+- Add targeted context phrases: "Use when working with Stacks blockchain contracts, Clarity smart contracts, or Clarinet projects"
+- Add fuzz testing context: "property testing and invariant validation"
+- Test against false positive scenarios (Ethereum, Solana, generic testing)
+- Test against false negative scenarios (valid Stacks prompts)
+- Iterate based on results
 
-**Rationale:** Orchestrator is last resort, not starting point.
+**Recommended approach:** Start conservative (Option A from PITFALLS.md):
+> "Stacks blockchain development assistant. Guides Clarity smart contract development using test-driven development with Clarinet CLI. Use when working with Stacks, Clarity smart contracts, Clarinet projects, or when building applications on the Stacks blockchain."
 
-#### Phase 5: Frontend Integration (Week 9+) - INDEPENDENT TRACK
-**Goal:** Add frontend integration capability.
+**Dependencies:** None (isolated change)
 
-**Components:**
-- `stacks-frontend` - Stacks.js wallet and contract call integration
+**Research needs:** SKIP (trigger patterns documented in PITFALLS.md)
 
-**Integration:**
-- Can be developed independently
-- Standalone skill invoked when user needs frontend
+#### Phase 5: Testing & Validation
+**Duration:** 2-3 days
+**Delivers:** Verified v1.1 functionality with real Clarity contract
 
-**Rationale:** Frontend is distinct domain, doesn't depend on orchestration architecture.
+**Tasks:**
+- Test enhanced Phase 4 workflow with sample contract
+- Verify unit tests + fuzz tests run in parallel
+- Verify coverage aggregation works correctly
+- Test fuzz failure reproduction (seed-based replay)
+- Test auto-invocation with expanded triggers
+- Validate no false positives/negatives
+
+**Dependencies:** Phase 3 + Phase 4 (all changes integrated)
+
+**Research needs:** SKIP (validation phase)
+
+#### Phase 6: Documentation & Release
+**Duration:** 1-2 days
+**Delivers:** Updated README, examples, release notes
+
+**Tasks:**
+- Update README with v1.1 features
+- Add example fuzz test scenarios
+- Document Phase 4 workflow changes
+- Create release notes highlighting fuzz testing and trigger improvements
+- Tag v1.1 release
+
+**Dependencies:** Phase 5 (validation complete)
+
+**Research needs:** SKIP (documentation phase)
+
+### Phase Ordering Rationale
+
+1. **Stack Integration first** - Foundation for all fuzz testing work
+2. **Reference file before SKILL.md** - clarity-fuzz.md must exist before SKILL.md can reference it
+3. **SKILL.md before triggers** - Core functionality before discoverability improvements
+4. **Testing after integration** - Validate all changes together, not piecemeal
+5. **Documentation last** - Document what's been validated, not what's planned
 
 ### Research Flags
 
-**Phases Needing Deeper Research:**
-1. **Clarinet SDK Integration** - Phase 2/3 (TDD skill) needs research on Clarinet test patterns, SDK APIs
-2. **Rendezvous Fuzz Testing** - Phase 3 (Fuzz skill) needs research on property testing patterns for Clarity
-3. **Stacks.js Frontend Integration** - Phase 5 (Frontend skill) needs research on wallet integration, contract calls
+**Phases requiring NO additional research:**
+- All phases - v1.1 research is complete and comprehensive
+- Stack integration patterns are well-documented
+- Fuzz testing patterns are catalogued (10 patterns in FEATURES-FUZZ-TESTING.md)
+- Trigger expansion risks are identified with mitigation strategies
 
-**Phases With Well-Documented Patterns:**
-- Plugin structure setup (Phase 1) - official docs comprehensive
-- SKILL.md format (all phases) - Agent Skills spec is authoritative
-- Subagent patterns (if needed in Phase 3+) - well-documented in Claude Code docs
+**Phases that might need validation during implementation:**
+- **Phase 4 (Trigger Expansion)** - Test against live Claude Code to verify false positive/negative rates
+- **Phase 5 (Testing)** - Validate that Vitest coverage captures fuzz test execution (likely answer: no, but needs confirmation)
 
 ### Build Order Dependencies
 
-**Critical Path:**
 ```
-plugin.json (manifest)
+Phase 1 (Stack Integration)
     ↓
-Single comprehensive skill (MVP)
+Phase 2 (Reference Documentation) ← Must complete before Phase 3
     ↓
-[VALIDATE: Does this work? Do we need to split?]
+Phase 3 (SKILL.md Integration) ← Depends on clarity-fuzz.md existing
     ↓
-clarity-design + clarity-tdd + clarinet (IF needed)
+Phase 4 (Trigger Expansion) ← Can run parallel with Phase 3
     ↓
-[VALIDATE: Is coordination complex enough to warrant orchestrator?]
+Phase 5 (Testing & Validation) ← Requires Phase 3 + Phase 4 complete
     ↓
-clarity-fuzz + clarity-coverage (OPTIONAL)
-    ↓
-stacks orchestrator (ONLY if complexity demands)
-    ↓
-stacks-frontend (INDEPENDENT)
+Phase 6 (Documentation & Release)
 ```
 
-**Parallel Tracks:**
-- Frontend can be developed anytime after contract implementation patterns proven
-- Documentation and examples can be developed alongside any phase
+**Parallel tracks:**
+- Phase 4 (Trigger Expansion) can run in parallel with Phase 3 (SKILL.md Integration)
+- Both must complete before Phase 5 (Testing)
 
-### Quality Gates Per Phase
+**Critical path:** Phase 1 → Phase 2 → Phase 3 → Phase 5 → Phase 6
+
+### Quality Gates
 
 | Phase | Gate | Criteria |
 |-------|------|----------|
-| Phase 1 (MVP) | Concept validation | Single skill successfully guides TDD workflow; context under 500 lines |
-| Phase 2 (Split) | Necessity validation | Concrete evidence that single skill is insufficient |
-| Phase 3 (Testing) | Reusability validation | Testing patterns proven worth extracting to dedicated skills |
-| Phase 4 (Orchestrator) | Complexity validation | Coordination burden on users justifies orchestration overhead |
-| Phase 5 (Frontend) | Integration validation | Frontend patterns work with existing contract development flow |
-
-### Risk Mitigation Strategy
-
-**High Risk: Context Window Explosion**
-- Mitigation: Test with `/context` after every skill addition
-- Monitor: Keep SKILL.md files under 500 lines at all times
-- Fallback: Aggressively move content to `references/` subdirectories
-
-**High Risk: Premature Orchestration**
-- Mitigation: Build Phase 1 single-skill MVP FIRST
-- Validate: Gather concrete evidence of limitations before splitting
-- Fallback: If orchestration proves unnecessary, simpler plugin is better outcome
-
-**Medium Risk: Skill Description Vagueness**
-- Mitigation: Test each skill description with realistic user prompts
-- Iterate: Refine descriptions based on false positive/negative patterns
-- Validate: Check auto-invocation works before moving to next phase
-
-**Medium Risk: Verification Gap**
-- Mitigation: Include verification steps in every skill from Phase 1
-- Validate: Skills must self-verify outputs using tests, checks, or examples
-- Fallback: Add verification as post-execution hooks if needed
+| Phase 1 | Installation verified | `npx rv --version` returns 0.13.1; npm install succeeds |
+| Phase 2 | Reference complete | clarity-fuzz.md contains all 10 patterns with examples |
+| Phase 3 | SKILL.md enhanced | Phase 4 rewrite complete; file under 600 lines; clarity-fuzz.md referenced correctly |
+| Phase 4 | Triggers validated | No false positives on Ethereum/Solana prompts; still activates on Stacks prompts |
+| Phase 5 | End-to-end verified | Sample contract passes unit tests + fuzz tests; coverage gate works; auto-invocation works |
+| Phase 6 | Documentation complete | README updated; examples added; release notes written; v1.1 tagged |
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| **Stack (file formats, directory structure)** | HIGH | Official Claude Code docs + Agent Skills spec are authoritative and comprehensive |
-| **Features (table stakes, differentiators)** | HIGH | Directly from Agent Skills spec and Claude Code documentation with community validation |
-| **Architecture (orchestrator pattern)** | MEDIUM-HIGH | Patterns inferred from multi-skill docs and 2026 multi-agent research. Critical caveat: start simple first |
-| **Pitfalls (critical mistakes)** | HIGH | Based on official best practices, community post-mortems, and 2026 AI agent orchestration research |
-| **MVP Recommendations** | MEDIUM | Strong evidence for "start simple" but specific Stacks workflow needs validation |
-| **Token Optimization** | MEDIUM | Progressive disclosure principle documented; specific numbers (~100 tokens metadata, <5k instructions) are guidelines not hard limits |
+| **Stack (Rendezvous integration)** | HIGH | Official Rendezvous docs (v0.13.1), npm registry data, GitHub repository verified |
+| **Features (property testing patterns)** | HIGH | 10 patterns documented from official Rendezvous docs + domain research; table stakes vs differentiators clearly defined |
+| **Architecture (Phase 4 enhancement)** | HIGH | Parallel validation track is well-supported by research; alternative approaches evaluated and rejected with rationale |
+| **Pitfalls (integration risks)** | HIGH | Comprehensive coverage of fuzz testing integration + trigger expansion risks from official docs and community best practices |
+| **Trigger Expansion** | MEDIUM-HIGH | Trigger patterns documented; false positive scenarios identified; needs live testing for validation |
+| **Roadmap (phase structure)** | HIGH | Clear dependencies; research complete; no gaps requiring additional research |
 
-### Gaps to Address
+**Overall confidence:** HIGH
 
-**During Phase 1 (MVP):**
-- Validate that Claude Code skills can effectively guide Clarity contract development (no prior examples found)
-- Test whether single skill handles full TDD workflow without splitting
-- Determine actual context consumption for Stacks development tasks
+### Gaps to Address During Implementation
 
-**During Phase 2 (If Splitting):**
-- Identify specific breaking points where single skill becomes unmanageable
-- Validate that skill coordination actually improves UX vs. single skill
+1. **Vitest coverage integration with fuzz tests** - Research suggests Vitest coverage will NOT capture Rendezvous execution (separate processes). Needs validation during Phase 5. Likely solution: report fuzz test pass/fail separately from unit test coverage %.
 
-**During Phase 3+ (Advanced Features):**
-- Research Clarinet SDK integration patterns (SDK API, test patterns, coverage tools)
-- Research Rendezvous property testing (how to integrate with Clarity contracts)
-- Research Stacks.js frontend integration (wallet connection, contract calls, transaction signing)
+2. **Trigger false positive rate** - Description expansions need live testing with Claude Code to measure actual false positive/negative rates. Phase 4 should iterate based on real-world results.
 
-**Throughout Development:**
-- Monitor actual token consumption vs. estimates
-- Validate auto-invocation triggers work with realistic user prompts
-- Test in multiple environments (macOS, Linux, Windows if targeting cross-platform)
+3. **Phase 4 complexity management** - Adding parallel fuzz track increases Phase 4 complexity. Phase 5 testing should validate that UX remains clear and workflow is intuitive.
+
+4. **Context budget impact** - clarity-fuzz.md adds ~200-250 lines of reference content. Monitor `/context` during Phase 5 to ensure no context window issues.
+
+5. **Property definition guidance** - The 10 patterns in clarity-fuzz.md should be tested with real contracts during Phase 5. Gather feedback on which patterns are most useful; consider prioritizing top 5 if content needs compression.
 
 ## Sources
 
-### Official Documentation (HIGH confidence)
-- [Claude Code Skills](https://code.claude.com/docs/en/skills) - Skill creation, configuration, features
-- [Claude Code Plugins](https://code.claude.com/docs/en/plugins) - Plugin structure, distribution
-- [Claude Code Subagents](https://code.claude.com/docs/en/sub-agents) - Custom subagent configuration
-- [Plugins Reference](https://code.claude.com/docs/en/plugins-reference) - Complete technical specifications
-- [Agent Skills Specification](https://agentskills.io/specification) - Open standard format
-- [Agent Skills Overview](https://agentskills.io) - Standard background and adoption
-- [Claude Code Best Practices](https://code.claude.com/docs/en/best-practices)
+### Primary Sources (HIGH Confidence)
 
-### Architecture & Patterns (MEDIUM confidence)
-- [Microsoft Learn: AI Agent Orchestration Patterns](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns)
-- [Google Multi-Agent Design Patterns](https://docs.cloud.google.com/architecture/choose-design-pattern-agentic-ai-system)
-- [Azure AI Agent Design Patterns](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns)
-- [LangChain Multi-Agent Architecture Guide](https://www.blog.langchain.com/choosing-the-right-multi-agent-architecture/)
-- [Claude Blog: When to use multi-agent systems](https://claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them)
+**Rendezvous/Fuzz Testing:**
+- [Rendezvous GitHub Repository](https://github.com/stacks-network/rendezvous) - Official source code, README, v0.13.1 release notes (Dec 24, 2025)
+- [Rendezvous Official Documentation](https://stacks-network.github.io/rendezvous/) - Authoritative guide to property-based testing
+- [Stacks Documentation - Fuzz Testing](https://docs.stacks.co/guides-and-tutorials/testing-smart-contracts/fuzz-testing) - Official integration guide
+- npm registry query results - Live package data via `npm view @stacks/rendezvous`
 
-### Community Resources (MEDIUM confidence)
-- [Anthropics Skills Repository](https://github.com/anthropics/skills) - Official example skills
-- [Agent Skills GitHub](https://github.com/agentskills/agentskills) - Open standard repository
-- [Claude Code Plugins Plus Skills](https://github.com/jeremylongshore/claude-code-plugins-plus-skills) - Community examples
-- [Awesome Claude Skills](https://github.com/VoltAgent/awesome-claude-skills) - Curated list
-- [Claude Code Multi-Agent Orchestration Gist](https://gist.github.com/kieranklaassen/d2b35569be2c7f1412c64861a219d51f)
+**Skill Development:**
+- [Claude Code Skills Documentation](https://code.claude.com/docs/en/skills) - Official skill specification
+- [Skill Authoring Best Practices](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/best-practices) - Official design patterns
 
-### Practical Guidance (MEDIUM confidence)
-- [Building /deep-plan: A Claude Code Plugin](https://pierce-lamb.medium.com/building-deep-plan-a-claude-code-plugin-for-comprehensive-planning-30e0921eb841)
-- [Optimizing Claude Code: Skills, Plugins, and the Art of Teaching Your AI](https://mays.co/optimizing-claude-code)
-- [Complete Claude Code Guide: Skills, MCP & Tool Integration](https://mrzacsmith.medium.com/the-complete-claude-code-guide-skills-mcp-tool-integration-part-2-20dcf2fb8877)
-- [The best way to do agentic development in 2026](https://dev.to/chand1012/the-best-way-to-do-agentic-development-in-2026-14mn)
+### Secondary Sources (MEDIUM Confidence)
 
-## Open Questions
+**Property-Based Testing Domain:**
+- [Property-Based Testing Comprehensive Guide](https://dev.to/keploy/property-based-testing-a-comprehensive-guide-lc2)
+- [Choosing properties for property-based testing](https://fsharpforfunandprofit.com/posts/property-based-testing-2/)
+- [Fuzz / Invariant Tests - Patrick Collins](https://patrickalphac.medium.com/fuzz-invariant-tests-the-new-bare-minimum-for-smart-contract-security-87ebe150e88c)
 
-**For Phase 1 Validation:**
-1. Can a single skill effectively guide the full Stacks TDD workflow (design → test → implement → fuzz → coverage → frontend)?
-2. What is the actual context consumption for realistic Clarity contract development?
-3. Do Stacks-specific workflows have characteristics that demand multi-skill architecture?
+**Trigger Expansion:**
+- [How to Make Claude Code Skills Activate Reliably](https://scottspence.com/posts/how-to-make-claude-code-skills-activate-reliably)
+- [Claude Skills and CLAUDE.md: A Practical 2026 Guide](https://www.gend.co/blog/claude-skills-claude-md-guide)
 
-**For Architecture Decisions:**
-4. At what point does orchestration overhead become worthwhile vs. user manually invoking skills?
-5. Should quality gates (90% coverage) be enforced by skills or left to user discretion?
-6. Is forked context beneficial for Clarity-specific exploration, or does inline work better?
+**Clarity-Specific:**
+- [Clarity Property-Based Testing Primer](https://blog.nikosbaxevanis.com/2022/03/05/clarity-property-based-testing-primer/) - Early patterns (2022, some concepts may be outdated)
+- [Testing Your Contract - Clarity Book](https://book.clarity-lang.org/ch07-04-testing-your-contract.html) - Official testing philosophy
 
-**For Domain Integration:**
-7. How should Clarinet SDK patterns be integrated (dynamic context injection vs. reference docs)?
-8. What Rendezvous property testing patterns are most valuable for Clarity contracts?
-9. What Stacks.js frontend integration patterns should be included vs. referenced externally?
+### Tertiary Sources (LOW-MEDIUM Confidence)
 
-**For Distribution:**
-10. Should this be a single plugin or separate plugins (stacks-dev, stacks-testing, stacks-frontend)?
-11. What enterprise/team configurations might affect skill precedence and namespace conflicts?
-12. Should sandbox mode compatibility be a requirement for all skills?
+- [Testing smart contracts - Ethereum.org](https://ethereum.org/developers/docs/smart-contracts/testing/) - General smart contract testing concepts
+- [Testing and Auditing Strategies for DeFi Smart Contracts](https://medium.com/@jitendersingh389/testing-and-auditing-strategies-for-defi-smart-contracts-b64a81449631) - DeFi-specific patterns
+
+---
+
+## Ready for Roadmap
+
+**Status:** Research synthesis complete
+**Next step:** v1.1 roadmap creation (all research complete, no additional research needed)
+**Key recommendation:** Proceed with 6-phase enhancement approach. Start with Phase 1 (Stack Integration).
+
+**Critical success factors:**
+1. Keep Phase 4 enhancement simple - parallel validation track, not separate phase
+2. Keep triggers Stacks-specific - test against false positives before deployment
+3. Create clarity-fuzz.md before updating SKILL.md (dependency)
+4. Validate end-to-end with real contract in Phase 5
+
+**Confidence level:** HIGH - ready to proceed with implementation.

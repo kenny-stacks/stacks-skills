@@ -1,574 +1,421 @@
-# Domain Pitfalls: Claude Code Skill/Plugin Development
+# Pitfalls Research: v1.1 Features
 
-**Domain:** Claude Code plugin development with orchestrator + specialized skills architecture
-**Researched:** 2026-01-29
-**Confidence:** HIGH (based on official Claude Code documentation and 2026 community patterns)
+**Project:** stacks-skills v1.1 - Rendezvous Fuzz Testing & Trigger Expansion
+**Domain:** Adding property-based fuzz testing to existing TDD workflow + expanding Claude Code skill auto-invocation
+**Researched:** 2026-02-03
+**Confidence:** MEDIUM-HIGH (based on official Rendezvous docs, Claude Code skill patterns, and 2026 community fuzz testing practices)
+
+## Summary
+
+Adding Rendezvous fuzz testing to an existing TDD-enforced workflow introduces two critical integration challenges: (1) **workflow sequencing** - where fuzz tests belong in the 5-phase TDD cycle, and (2) **test philosophy conflicts** - property-based testing requires different thinking than example-based unit tests. Expanding skill trigger keywords risks false positives where non-Stacks prompts incorrectly activate the skill, polluting context and degrading user experience. The key risks are: **forcing fuzz testing too early** in the workflow before unit tests stabilize properties, **conflating unit and fuzz test purposes**, **trigger keyword over-generalization** causing activation on generic blockchain/smart contract mentions, and **documentation bloat** from trying to explain both testing approaches in one skill.
 
 ## Critical Pitfalls
 
-Mistakes that cause rewrites, major refactoring, or fundamental architecture failures.
-
-### Pitfall 1: Unnecessary Orchestration Complexity
-**What goes wrong:** Creating elaborate multi-skill orchestration when a single skill would suffice. Teams invest weeks building complex orchestrator patterns only to discover improved prompting on a single skill achieved equivalent results.
-
-**Why it happens:** Premature optimization. The excitement of building a sophisticated architecture leads developers to over-engineer before validating the actual need for coordination.
-
-**Consequences:**
-- Wasted development time building unnecessary coordination logic
-- Increased maintenance overhead from managing multiple skills
-- Higher cognitive load for users learning multiple commands
-- Brittle systems where one skill failure breaks entire workflows
-- Context pollution from unnecessary skill-to-skill handoffs
-
-**Prevention:**
-- Start with a single skill for your entire workflow
-- Add orchestration ONLY when you hit concrete limitations
-- Ask: "What specific failure happens without orchestration?"
-- Validate that simple sequential execution truly doesn't work
-- Remember: "The recommendation is to start simple, as single-agent architecture handles way more use cases than expected"
-
-**Detection:**
-- Your orchestrator mostly calls skills in fixed sequence
-- Skills don't actually share state or coordinate decisions
-- Removing the orchestrator and running skills manually works fine
-- Most skill invocations are deterministic rather than dynamic
-- Users avoid your complex orchestration and run skills individually
-
-**Phase Impact:** Foundation/Architecture phase. Get this wrong early and you'll rebuild the entire system.
-
----
-
-### Pitfall 2: Context Window Explosion
-**What goes wrong:** Skills that load massive amounts of content into context, causing performance degradation, token budget exhaustion, and Claude "forgetting" earlier instructions.
-
-**Why it happens:**
-- Not understanding that Claude's context holds EVERYTHING: conversation, files read, command output
-- Treating file reads as "free" operations
-- Loading documentation or examples that should be progressively disclosed
-- Skills that explore broadly rather than target specifically
-
-**Consequences:**
-- Claude makes mistakes it wouldn't make with cleaner context
-- Auto-compaction triggers unexpectedly, losing important context
-- Token costs skyrocket
-- Skill execution slows dramatically
-- Critical instructions get lost in noise
-
-**Prevention:**
-- Keep SKILL.md under 500 lines
-- Move detailed reference material to separate files that Claude loads on-demand
-- Use progressive disclosure: reference supporting files from SKILL.md
-- Design skills to target specific files/directories rather than broad exploration
-- Use subagents with `context: fork` for research-heavy tasks
-- Test skills with `/context` to see actual token consumption
-
-**Detection:**
-- `/context` shows character budget warnings about excluded skills
-- Skill execution triggers auto-compaction
-- Claude stops following skill instructions mid-execution
-- Users report "Claude forgot what I told it"
-- Token costs are unexpectedly high for simple operations
-
-**Phase Impact:** Every phase. This degrades all skill performance if not caught early.
-
----
-
-### Pitfall 3: Skill Namespace Conflicts
-**What goes wrong:** Multiple plugins define skills with the same name, creating ambiguity or silent failures. Or project-level skills conflict with personal/enterprise skills, with unclear precedence.
-
-**Why it happens:**
-- Not understanding plugin namespacing (plugins use `/plugin-name:skill-name` format)
-- Converting standalone commands to plugin skills without accounting for namespace changes
-- Assuming skill names are globally unique
-- Missing the precedence rules: enterprise > personal > project
-
-**Consequences:**
-- Skills don't trigger when expected
-- Wrong skill version executes (enterprise overrides project version)
-- Users invoke wrong skill due to naming collision
-- Silent failures where Claude uses unexpected skill implementation
-- Plugin installation breaks existing workflows
-
-**Prevention:**
-- Plugin skills are ALWAYS namespaced: `/my-plugin:skill-name`
-- Document skill precedence clearly: enterprise > personal > project
-- Use descriptive plugin names that won't conflict: `/stacks-dev:init` not `/dev:init`
-- Test plugin installation in clean environment to verify namespace behavior
-- Check for conflicts: `grep -r "^name:" .claude/skills/*/SKILL.md`
-
-**Detection:**
-- `/skill-name` works in one environment but fails in another
-- Claude invokes unexpected skill version
-- Skill appears twice in `/help` output with different namespaces
-- Users report "the skill does something different than documented"
-
-**Phase Impact:** Distribution phase. Not critical during development, catastrophic during rollout.
-
----
-
-### Pitfall 4: Verification Gap
-**What goes wrong:** Skills that produce plausible-looking but incorrect output because Claude can't verify its own work. Users become the only feedback loop, manually checking every execution.
-
-**Why it happens:**
-- Skills don't include success criteria or verification steps
-- Assuming Claude can self-assess without concrete tests
-- Not providing examples of expected output
-- Missing the "Claude performs dramatically better when it can verify its own work" principle
-
-**Consequences:**
-- High error rate in skill execution
-- Every skill invocation requires manual verification
-- Users lose trust in skills and stop using them
-- Silent failures where incorrect output looks correct
-- Technical debt accumulates from undetected mistakes
-
-**Prevention:**
-- Include verification steps IN the skill instructions
-- Provide test cases, expected outputs, or screenshots
-- Use `allowed-tools` to grant Bash access for running tests
-- Add examples showing correct vs incorrect output
-- Design skills to produce testable artifacts
-- Consider post-execution hooks for automatic validation
-
-**Detection:**
-- Users frequently report "the skill did X but it should do Y"
-- Skill executions often require follow-up corrections
-- You can't tell if skill succeeded without manual inspection
-- Edge cases fail silently
-- Users create "review" skills to check other skills' output
-
-**Phase Impact:** Testing/MVP phase. Without verification, you can't confidently release.
-
----
-
-### Pitfall 5: Permission Ambiguity
-**What goes wrong:** Skills that require specific tools but don't declare them, causing either:
-- Permission prompts interrupting autonomous workflows
-- Skills failing because they can't access needed tools
-- Security risks from granting overly broad permissions
-
-**Why it happens:**
-- Not understanding the `allowed-tools` field in frontmatter
-- Assuming Claude can "figure out" what permissions it needs
-- Granting blanket permissions that violate security policies
-- Not testing skills with restrictive permission settings
-
-**Consequences:**
-- Skills interrupt autonomous workflows with permission prompts
-- Users grant excessive permissions to "make it work"
-- Security audit failures
-- Skills behave differently in sandboxed vs unrestricted environments
-- Deployment blocked by enterprise security policies
-
-**Prevention:**
-- Use `allowed-tools` frontmatter field to declare required tools
-- Be specific: `allowed-tools: "Bash(npm test *), Bash(git commit *)"` not `Bash`
-- Test skills with `/permissions` set to restrictive mode
-- Document permission requirements in README
-- Consider sandbox compatibility from the start
-- Use `--allowedTools` flag during headless testing
-
-**Detection:**
-- Skills work in development but fail in production/CI
-- Excessive permission prompts during skill execution
-- Security team flags your plugin as high-risk
-- Skills fail with cryptic errors about tool access
-- `/permissions` shows unexpected tool usage
-
-**Phase Impact:** Security/Deployment phase. Can block production rollout entirely.
-
----
-
-### Pitfall 6: Bloated CLAUDE.md Loading
-**What goes wrong:** Treating skills as documentation dump rather than executable instructions. The skill content becomes a reference manual that fills context without providing actionable guidance.
-
-**Why it happens:**
-- Migrating documentation directly into skills without adapting format
-- Including "just in case" information that applies rarely
-- Not understanding the difference between reference (load on-demand) and task (execute immediately) content
-- Missing the "Keep SKILL.md under 500 lines" guideline
-
-**Consequences:**
-- Skill descriptions exceed character budget (default 15,000 characters)
-- Claude can't see all available skills (some excluded from context)
-- Performance degradation from excessive context loading
-- Critical skills don't trigger because their descriptions weren't loaded
-- Users resort to `/skill-name` invocation because auto-triggering fails
-
-**Prevention:**
-- Separate reference content (supporting files) from task content (SKILL.md)
-- Use progressive disclosure: reference supporting files from SKILL.md
-- Set `SLASH_COMMAND_TOOL_CHAR_BUDGET` environment variable if needed
-- Regularly audit skill descriptions: "Is this 10-word summary sufficient?"
-- Use `user-invocable: false` for background-only skills
-- Run `/context` to check for character budget warnings
-
-**Detection:**
-- `/context` shows warnings about excluded skills
-- Claude doesn't auto-invoke skills when descriptions match task
-- Skill list in `/help` is incomplete
-- Multiple skills with 500+ line descriptions
-- Token costs high even for simple operations
-
-**Phase Impact:** Performance/Scaling phase. System works with 5 skills, breaks with 20.
-
----
-
-### Pitfall 7: Insufficient Skill Description Specificity
-**What goes wrong:** Vague skill descriptions that don't give Claude enough signal about when to trigger. Either skills fire too often (false positives) or never fire (false negatives).
-
-**Why it happens:**
-- Writing descriptions for human readers, not for Claude's pattern matching
-- Being too generic: "Helps with development tasks"
-- Not including trigger keywords users would naturally say
-- Failing to test description matching with realistic user prompts
-
-**Consequences:**
-- Skills trigger on wrong tasks (false positives)
-- Users must manually invoke with `/skill-name` (false negatives)
-- Multiple skills fire simultaneously, causing confusion
-- Users lose confidence in automatic skill loading
-- Context pollution from incorrectly triggered skills
-
-**Prevention:**
-- Include specific trigger phrases in description
-- Test with realistic user prompts: "Would I say these exact words?"
-- Add context clues: "Use when...", "Applies to...", "Relevant for..."
-- Be specific about scope: "Stacks blockchain Clarity contracts" not "smart contracts"
-- Iterate based on false positive/negative patterns
-- Use `disable-model-invocation: true` for sensitive skills
-
-**Detection:**
-- Ask "What skills are available?" and description sounds unclear
-- Skill fires on unrelated tasks
-- Users report: "I asked about X and got skill Y"
-- You frequently use `/skill-name` instead of relying on auto-trigger
-- Multiple skills have overlapping descriptions
-
-**Phase Impact:** Usability/Refinement phase. Makes well-architected skills unusable.
-
----
-
-### Pitfall 8: Subagent Context Mismatch
-**What goes wrong:** Using `context: fork` for skills that need conversation history, or NOT using it for skills that pollute main context with exploration.
-
-**Why it happens:**
-- Not understanding when skills should run in isolation vs inline
-- Treating `context: fork` as "always better" or "never needed"
-- Missing that subagents don't have access to conversation history
-- Not considering token consumption of exploration tasks
-
-**Consequences:**
-- Skills that need conversation context fail in forked mode
-- Research skills pollute main conversation with hundreds of file reads
-- Context window fills with irrelevant exploration
-- Subagent results lose important context from main conversation
-- Users confused by inconsistent skill behavior
-
-**Prevention:**
-- Use `context: fork` for: research, exploration, independent verification
-- DON'T use for: skills needing conversation history, sequential workflows
-- Test both modes to understand behavior difference
-- Document in skill description whether it runs in forked context
-- Consider hybrid: main skill in inline mode delegates to subagent for research
-
-**Detection:**
-- Skill fails with "I don't have context about..." in forked mode
-- Main conversation context fills rapidly during skill execution
-- Subagent results repeat information from conversation
-- Skills behave unexpectedly after context changes
-- Token costs vary wildly between skill executions
-
-**Phase Impact:** Architecture phase. Changing context mode later requires skill redesign.
-
----
+| Pitfall | Warning Signs | Prevention | Phase |
+|---------|---------------|------------|-------|
+| **Fuzz-Before-Design** - Running Rendezvous before properties are clearly defined, generating meaningless random tests | Fuzz tests that don't check meaningful invariants; "test everything" property definitions; confused users asking "what should I test?" | Define properties during Design phase (Phase 1). Document "table stakes" invariants (balance >= 0, supply constant). Fuzz tests come AFTER unit tests prove basic behavior. | Phase 1 (Design) + Phase 2 (Tests) integration |
+| **TDD Confusion** - Treating fuzz tests as replacement for unit tests, breaking the RED-GREEN-REFACTOR cycle | Users skip unit tests and go straight to fuzzing; no concrete examples of expected behavior; implementation lacks clear requirements | **Fuzz tests complement, not replace unit tests.** Unit tests = concrete examples. Fuzz tests = universal properties. Always write unit tests first (TDD), then add fuzz tests for invariants. | Phase 2 (Tests) |
+| **Trigger Over-Generalization** - Expanding keywords to include "blockchain" or "smart contract" causes false positives on Ethereum, Solana, other chains | Skill activates on "help me with Ethereum contract" or "Solana smart contract tutorial"; context pollution from irrelevant skill loading; users disable skill | Keep triggers **Stacks-specific**: "Stacks", "Clarity", "Clarinet". Add context: "Stacks blockchain", "Clarity smart contracts". Test against non-Stacks prompts. | Trigger expansion (v1.1 milestone) |
+| **Property Definition Failure** - Writing properties that are too weak (always pass) or too strong (always fail), making fuzz tests useless | Rendezvous reports 100% success but properties test nothing; or 100% failure because property is impossible | Include property examples in documentation. Start with simple invariants: "balance never negative", "total supply constant after initialization". Test properties manually before fuzzing. | Phase 2 (Tests) + Phase 4 (Verification) |
 
 ## Moderate Pitfalls
 
-Mistakes that cause delays, technical debt, or reduced effectiveness.
+| Pitfall | Prevention |
+|---------|------------|
+| **Workflow Integration Ambiguity** - Unclear when to run Rendezvous vs Vitest; users confused about phase transitions | Document clear workflow: **Phase 2: unit tests (Vitest)** → **Phase 3: implementation** → **Phase 4: coverage (Vitest) + fuzz testing (Rendezvous)**. Fuzz tests are verification, not TDD. |
+| **Resource Consumption Shock** - Fuzz tests take minutes/hours vs seconds for unit tests; CI pipelines timeout; developers frustrated by slow feedback | Document expected runtime. Default `--runs 100` for development, `--runs 1000+` for CI. Run fuzz tests separately from unit tests. Consider `--bail` flag for faster failure. |
+| **Seed Management Neglect** - Failing fuzz tests can't be reproduced because seed wasn't captured | Capture `--seed` value on failure. Document reproduction steps. Add to verification checklist: "Can you reproduce this fuzz failure?" |
+| **Coverage Interpretation Conflict** - Conflating Vitest code coverage (90% threshold) with fuzz test coverage (input space exploration) | Clarify: **Vitest coverage** = lines executed. **Fuzz coverage** = state space explored. Both are needed. 90% Vitest coverage doesn't mean fuzz tests are comprehensive. |
+| **Node.js Version Mismatch** - Rendezvous requires Node 20/22/24; users on Node 18 get cryptic errors | Check Node version in skill: "Rendezvous requires Node.js 20+. Current: [version]". Document version requirement in SKILL.md and reference files. |
+| **Test File Organization Chaos** - Mixing unit tests and fuzz tests in same file; unclear separation of concerns | Separate files: `contract.test.ts` (unit tests), `contract.fuzz.clar` (fuzz properties). Document file naming convention. Load on-demand based on phase. |
+| **Property Language Confusion** - Fuzz properties written in Clarity (runs on-chain) vs unit tests in TypeScript (off-chain); users mix syntax | Document clearly: **Unit tests = TypeScript/Vitest**. **Fuzz properties = Clarity read-only functions**. Show side-by-side examples. Reference files should be separate. |
+| **False Positive Trigger on "test" Keyword** - Expanding triggers to "test smart contracts" activates on any testing question | Don't use generic testing keywords. Keep "Clarity", "Clarinet", "Stacks". Add negative context if needed. Test against: "how do I test this JavaScript function?" |
+| **CLI Command Proliferation** - Adding `npx rv` alongside `clarinet test` and `npm run test:coverage`; users confused about which to run | Document command flow clearly. Create npm scripts: `test:unit`, `test:fuzz`, `test:all`. Show in verification checklist what each command validates. |
 
-### Pitfall 9: Missing Argument Validation
-**What goes wrong:** Skills accept arguments via `$ARGUMENTS` but don't validate format, causing cryptic failures when users provide wrong input.
+## Trigger Expansion Pitfalls
+
+Specific risks when expanding skill description keywords to improve auto-invocation coverage.
+
+### Pitfall: Generic Blockchain Keywords
+
+**What goes wrong:** Adding "blockchain" or "smart contract" to skill description causes skill to activate on Ethereum, Solana, Cosmos questions.
+
+**Why it happens:** Desire to catch users who say "I want to build a blockchain app" without mentioning Stacks specifically.
+
+**Consequences:**
+- Skill loads into context for irrelevant blockchain questions
+- Stacks-specific guidance applied to wrong chains
+- Context pollution (15,000 char budget wasted on wrong skill)
+- User confusion: "Why is it talking about Clarity when I asked about Solidity?"
+- Users disable skill permanently
 
 **Prevention:**
-- Document expected argument format in `argument-hint` frontmatter
-- Include validation instructions in skill content
-- Provide clear error messages for invalid arguments
-- Use examples: `argument-hint: "[issue-number]"` or `[filename] [format]`
+- **Always pair generic terms with Stacks-specific context**
+- Good: "Stacks blockchain development", "Clarity smart contracts on Stacks"
+- Bad: "blockchain development", "smart contract testing"
+- Test description against: "Help me deploy an Ethereum smart contract" (should NOT trigger)
+- Test against: "How do I test Solidity contracts?" (should NOT trigger)
 
 **Detection:**
-- Users report "skill failed with unclear error"
-- Skill works sometimes, fails others based on input format
-- You spend time debugging user input issues
+- Users report skill activating on non-Stacks questions
+- Context shows skill loaded for Ethereum/Solana/other chains
+- High rate of skill load without skill usage
+- Users explicitly ask: "Why are you talking about Stacks?"
+
+**Phase:** Trigger expansion milestone (v1.1)
 
 ---
 
-### Pitfall 10: Hook Timing Misunderstanding
-**What goes wrong:** Using hooks when instructions in SKILL.md would suffice, or vice versa. Hooks are deterministic and ALWAYS fire; instructions are advisory.
+### Pitfall: "Testing" Keyword Ambiguity
+
+**What goes wrong:** Adding "testing" or "test-driven development" to description causes activation on general testing questions.
+
+**Why it happens:** Wanting to catch "how do I test my Stacks app?" prompts.
+
+**Consequences:**
+- Activates on "how to test React components", "Python unit testing", "TDD for microservices"
+- Provides Clarinet-specific guidance for unrelated testing scenarios
+- Users lose trust in auto-activation
 
 **Prevention:**
-- Use hooks for: "must happen every time with zero exceptions"
-- Use SKILL.md instructions for: "usually do this, but use judgment"
-- Test what happens when hook conditions are met
-- Document hook behavior clearly in README
-- Consider whether user needs override capability
+- Combine testing terms with Stacks context: "Clarity contract testing with Clarinet"
+- Don't use standalone "TDD" or "testing" in description
+- Test against: "How do I write unit tests for my API?" (should NOT trigger)
+- Current description is good: "test-driven development with Clarinet CLI"
 
 **Detection:**
-- Users complain "skill does X even when I don't want it to"
-- Instructions in SKILL.md sometimes ignored by Claude
-- Hook fires in unexpected situations
-- Need to disable plugin to prevent hook execution
+- Skill loads when user asks about testing non-Stacks code
+- Clarinet commands suggested for non-Clarity projects
+
+**Phase:** Trigger expansion milestone (v1.1)
 
 ---
 
-### Pitfall 11: LSP Server Binary Assumptions
-**What goes wrong:** Plugin includes LSP server configuration but assumes users have language server binary installed. Users install plugin, code intelligence features fail silently.
+### Pitfall: Overly Broad File Extension Triggers
+
+**What goes wrong:** Suggesting skill auto-loads when user works with `.test.ts` files, causing activation on any TypeScript test file.
+
+**Why it happens:** Rendezvous/Clarinet tests use TypeScript; want to activate when user edits test files.
+
+**Consequences:**
+- Skill loads for React tests, Node.js tests, any TS test file
+- Clarinet/Stacks context pollutes non-Stacks projects
+- Multi-project developers forced to disable skill
 
 **Prevention:**
-- Document required binary installations in README
-- Include installation script or clear installation instructions
-- Test plugin installation on clean system
-- Consider pre-install checks or validation hooks
-- Provide helpful error messages when binary missing
+- Don't trigger on `.test.ts` alone - too generic
+- DO trigger on `.clar` files (Clarity-specific)
+- DO trigger on `Clarinet.toml` presence (Clarinet-specific)
+- Consider: trigger on `.test.ts` files ONLY if `Clarinet.toml` exists in project
+- Document in skill: "Auto-activates in Clarinet projects"
 
 **Detection:**
-- Users report "code intelligence not working"
-- Plugin installs but features don't activate
-- Error logs show "command not found: gopls"
-- Works on your machine, fails for users
+- Skill loads in non-Clarinet projects with TypeScript tests
+- Users working on multiple projects report unwanted activation
+
+**Phase:** Trigger expansion milestone (v1.1)
 
 ---
 
-### Pitfall 12: Circular Skill Dependencies
-**What goes wrong:** Skill A invokes skill B, which invokes skill C, which invokes skill A. Infinite loops or deep recursion.
+### Pitfall: Activation on "Deploy" or "Production"
+
+**What goes wrong:** Adding deployment keywords causes skill to load for any deployment question.
+
+**Why it happens:** Want to help with Stacks contract deployment to mainnet/testnet.
+
+**Consequences:**
+- Activates on "deploy to AWS", "production database setup", "deploy Next.js app"
+- Clarinet deployment patterns suggested for unrelated infrastructure
 
 **Prevention:**
-- Design skills to be terminal (don't invoke other skills)
-- If skills must coordinate, use explicit orchestrator pattern
-- Document skill dependency graph
-- Test skill chains for cycles
-- Set maximum delegation depth
+- Use "Stacks contract deployment", not "deployment"
+- Current description doesn't include deployment - good
+- If adding Phase 5 deployment triggers, be specific
 
 **Detection:**
-- Skill execution hangs or times out
-- Context fills with repeated skill invocations
-- Error logs show deep call stacks
-- Token costs explode for simple operations
+- Skill suggests Clarinet devnet for Vercel deployment
+- AWS/Docker deployment prompts incorrectly trigger skill
+
+**Phase:** Trigger expansion milestone (v1.1)
 
 ---
 
-### Pitfall 13: Environment Variable Dependency
-**What goes wrong:** Skills rely on environment variables that aren't documented or validated, causing silent failures in different environments.
+### Pitfall: Description Length Explosion
+
+**What goes wrong:** Adding many keywords/phrases to description pushes skill over 1024 char limit or makes description too noisy.
+
+**Why it happens:** Trying to cover every possible user phrasing.
+
+**Consequences:**
+- Description truncated or rejected by Claude Code
+- Noise in `/help` output
+- Claude can't parse trigger conditions clearly
 
 **Prevention:**
-- Document all required environment variables in README
-- Include validation in skill: "Check that GITHUB_TOKEN is set"
-- Provide clear error messages when vars missing
-- Consider .env.example file
-- Test in clean environment without your personal config
+- Keep description under 1024 chars (spec limit)
+- Focus on 3-5 key trigger phrases
+- Use natural language, not keyword stuffing: "Guides Clarity smart contract development using test-driven development with Clarinet CLI" beats "Clarity, Stacks, blockchain, smart contract, TDD, testing, Clarinet, devnet, deployment, coverage"
+- Current description (163 chars) has room to grow, but prioritize clarity over coverage
 
 **Detection:**
-- Skills work locally but fail in CI
-- Users report "skill doesn't work" without error message
-- Debugging reveals missing env var assumptions
-- Works after `export SOME_VAR=...` but this wasn't documented
+- Description feels like SEO spam
+- `/help` shows truncated description
+- Skill validation fails
+
+**Phase:** Trigger expansion milestone (v1.1)
 
 ---
 
-### Pitfall 14: Marketplace Distribution Format Errors
-**What goes wrong:** Plugin works with `--plugin-dir` but fails when distributed through marketplace due to incorrect structure, missing manifest fields, or path assumptions.
+## Rendezvous-Specific Integration Pitfalls
+
+### Pitfall: GPL-3.0 License Confusion
+
+**What goes wrong:** Rendezvous uses GPL-3.0, which has viral copyleft requirements. Users/enterprises concerned about license compatibility.
+
+**Why it happens:** Not clearly documenting license implications for projects using Rendezvous.
+
+**Consequences:**
+- Enterprise adoption blocked by legal review
+- Users avoid fuzz testing feature due to license fear
+- License violation if Rendezvous code incorporated into MIT-licensed skill
 
 **Prevention:**
-- Test installation from marketplace before public release
-- Validate plugin.json against schema
-- Use relative paths, never absolute paths
-- Follow official directory structure exactly
-- Test on different OS (paths, line endings, permissions)
+- Document clearly: Rendezvous is a **development tool**, not incorporated into your contract code
+- Running `npx rv` for testing doesn't affect your contract's license
+- Skill remains Apache-2.0; Rendezvous is separate dependency
+- Note in documentation: "Rendezvous (GPL-3.0) is a testing tool, not compiled into contracts"
 
 **Detection:**
-- Plugin loads locally but marketplace installation fails
-- Users report "plugin not found" after installation
-- Skills don't appear in namespace after install
-- Plugin version shows incorrect or missing metadata
+- Enterprise users ask about license compatibility
+- Legal teams flag GPL dependency
+- Users avoid fuzz testing feature
+
+**Phase:** Documentation phase (v1.1 milestone)
 
 ---
 
-### Pitfall 15: Over-Reliance on Pre-Existing Knowledge
-**What goes wrong:** Skills assume Claude "knows" current library APIs or patterns without verification. Claude's training data is 6-18 months stale.
+### Pitfall: Missing Invariant Documentation
+
+**What goes wrong:** Users add Rendezvous but don't know what properties to test. Skill provides TDD guidance but not property-based testing patterns.
+
+**Why it happens:** Property-based testing is less familiar than example-based testing. Current skill has no fuzz testing reference.
+
+**Consequences:**
+- Users write weak properties: `(ok true)` - always passes
+- Fuzz tests provide false confidence
+- Time wasted fuzzing meaningless invariants
+- Users abandon fuzz testing as "not useful"
 
 **Prevention:**
-- Include current API patterns in skill or supporting files
-- Link to official documentation: "Refer to https://..."
-- Don't assume library capabilities without verification
-- Test skills with latest library versions
-- Include version constraints in documentation
+- Create `clarity-fuzz.md` reference file with:
+  - Common invariants (balance consistency, supply conservation, access control)
+  - Property templates for different contract types (token, NFT, DeFi)
+  - Anti-patterns: properties that test nothing
+  - Examples: weak vs strong properties
+- Load reference during Phase 2 (Tests) and Phase 4 (Verification)
+- Propose invariants during test scenario collaboration
 
 **Detection:**
-- Skill generates deprecated API usage
-- Claude uses old patterns that no longer work
-- Users report "this code doesn't match current docs"
-- Frequent corrections needed after skill execution
+- Users ask "what should I test with Rendezvous?"
+- Fuzz tests always pass (weak properties)
+- Fuzz tests always fail (impossible properties)
+- No clear invariants defined in Design phase
+
+**Phase:** Phase 2 (Tests) + Documentation
 
 ---
 
-## Minor Pitfalls
+### Pitfall: Fuzz Test Flakiness
 
-Mistakes that cause annoyance but are easily fixable.
+**What goes wrong:** Fuzz tests pass sometimes, fail others due to random seed variation. CI becomes unreliable.
 
-### Pitfall 16: Missing argument-hint Frontmatter
-**What goes wrong:** Users invoke `/skill-name` but don't know what arguments to provide. Discovery is painful.
+**Why it happens:** Not controlling seed; not understanding deterministic replay.
+
+**Consequences:**
+- CI fails intermittently, blocking deployments
+- Developers can't reproduce failures locally
+- Team loses trust in fuzz tests
+- Fuzz tests disabled in CI
 
 **Prevention:**
-- Always include `argument-hint` in frontmatter for skills that take arguments
-- Example: `argument-hint: "[contract-name]"` or `[test-file] [coverage-threshold]`
+- Document seed management: `npx rv --seed <value>` for reproduction
+- Capture seed on failure: "Fuzz test failed with seed: 123456. Reproduce: npx rv --seed 123456"
+- Consider deterministic seeds in CI (trade-off: less randomness, more reproducibility)
+- Default to random seed in development, fixed seed in CI for baseline
+
+**Detection:**
+- CI shows intermittent fuzz test failures
+- Users can't reproduce fuzz failures locally
+- Team complains about "flaky tests"
+
+**Phase:** Phase 4 (Verification) + CI integration
 
 ---
 
-### Pitfall 17: Unclear Skill vs Command Terminology
-**What goes wrong:** Confusion between commands (legacy `.claude/commands/`), skills (`.claude/skills/`), and plugin-namespaced skills.
+### Pitfall: Fuzz Test Configuration Overload
+
+**What goes wrong:** Too many configuration options (`--runs`, `--seed`, `--bail`, `--dial`) confuse users. Skill doesn't provide defaults.
+
+**Why it happens:** Rendezvous has flexible configuration; skill tries to document everything at once.
+
+**Consequences:**
+- Users paralyzed by choice
+- Skill documentation becomes reference manual (context bloat)
+- Users run with wrong settings (too few runs = false confidence)
 
 **Prevention:**
-- Use "skill" consistently in documentation
-- Note that commands are legacy, skills are current
-- Clarify that both create slash commands
-- Explain plugin namespacing upfront
+- Provide opinionated defaults in skill:
+  - Development: `npx rv . contract test --runs 100 --bail`
+  - CI/Verification: `npx rv . contract invariant --runs 1000`
+- Progressive disclosure: basic usage in SKILL.md, advanced options in `clarity-fuzz.md`
+- Don't explain all flags upfront - provide them on-demand
 
----
+**Detection:**
+- Users ask "what flags should I use?"
+- Skill explanation of flags fills screens
+- Users run fuzz tests with `--runs 10` (insufficient)
 
-### Pitfall 18: No README or Usage Documentation
-**What goes wrong:** Users install plugin but don't know what skills exist, what they do, or how to invoke them.
-
-**Prevention:**
-- Include comprehensive README.md at plugin root
-- Document each skill with examples
-- Include troubleshooting section
-- Add GIF/video showing usage for complex workflows
-
----
-
-### Pitfall 19: Version Field Neglect
-**What goes wrong:** Plugin versions never increment, causing confusion about which version users have installed and breaking update mechanisms.
-
-**Prevention:**
-- Use semantic versioning: MAJOR.MINOR.PATCH
-- Increment on every release
-- Document changes in CHANGELOG.md
-- Test update flow from old to new version
-
----
-
-### Pitfall 20: Missing License Information
-**What goes wrong:** Legal ambiguity prevents enterprise adoption or community contributions.
-
-**Prevention:**
-- Include `license` field in plugin.json
-- Add LICENSE file at plugin root
-- Use standard license (MIT, Apache-2.0, etc.)
-- Clarify contribution terms
+**Phase:** Documentation + Phase 4 (Verification)
 
 ---
 
 ## Phase-Specific Warnings
 
-Critical considerations for each development phase.
+Which phase should address each pitfall.
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| **Foundation/Planning** | Unnecessary orchestration complexity | Start with single skill. Validate orchestration need before building it. Ask: "What breaks without orchestration?" |
-| **Architecture** | Subagent context mode mismatch | Decide inline vs fork early. Research skills → fork. Sequential workflows → inline. |
-| **Skill Development** | Context window explosion | Keep SKILL.md under 500 lines. Move reference material to supporting files with progressive disclosure. |
-| **Testing** | Verification gap | Build verification INTO skills. Include test cases, expected outputs, validation steps. |
-| **Security** | Permission ambiguity | Declare required tools with `allowed-tools`. Test in restrictive mode. Document permission requirements. |
-| **Performance** | Bloated CLAUDE.md loading | Audit total skill description length. Set SLASH_COMMAND_TOOL_CHAR_BUDGET if needed. Monitor with `/context`. |
-| **Usability** | Skill description vagueness | Include specific trigger phrases. Test with realistic user prompts. Iterate based on false positives/negatives. |
-| **Integration** | Environment variable dependency | Document all required env vars. Validate in skill. Test in clean environment. |
-| **Distribution** | Plugin structure errors | Validate manifest. Use relative paths. Test installation from marketplace on clean system. |
-| **Deployment** | Namespace conflicts | Understand precedence: enterprise > personal > project. Test in all environments. Use descriptive plugin names. |
-| **Maintenance** | Missing version increments | Use semantic versioning. Update on every release. Maintain CHANGELOG.md. |
+| Phase | Pitfall | Why This Phase | What to Do |
+|-------|---------|----------------|------------|
+| **Phase 1: Design** | Fuzz-Before-Design | Properties must be defined before fuzzing | Add step: "Define contract invariants" alongside data structures. Document 3-5 key properties that must always hold. |
+| **Phase 2: Tests** | TDD Confusion, Property Language Confusion | Tests phase covers both unit and fuzz test creation | Split into 2 substeps: (2a) Unit tests (Vitest) for concrete examples, (2b) Fuzz properties (Clarity) for invariants. Clarify: unit tests first (TDD), then fuzz. |
+| **Phase 2: Tests** | Test File Organization Chaos | File structure established during test creation | Document naming: `contract.test.ts` (unit), `contract.fuzz.clar` (properties). Show directory structure. |
+| **Phase 3: Implementation** | (No new pitfalls) | Implementation phase unchanged | Existing best practices apply. Fuzz tests don't affect implementation phase. |
+| **Phase 4: Verification** | Coverage Interpretation Conflict, Fuzz Test Flakiness, Resource Consumption Shock | Verification runs both Vitest coverage and Rendezvous | Add fuzz testing step: "After coverage >= 90%, run Rendezvous for invariant testing." Document expected runtime. Capture seed on failure. |
+| **Phase 5: Frontend** | (No new pitfalls) | Frontend phase unchanged | Fuzz testing complete before frontend integration. |
+| **Trigger Expansion** | All trigger-related pitfalls | v1.1 milestone adds trigger keywords | Test description changes against non-Stacks prompts. Iterate based on false positive/negative rates. |
+| **Documentation** | Missing Invariant Documentation, GPL License Confusion | v1.1 adds fuzz testing reference | Create `clarity-fuzz.md` reference file. Document Rendezvous license. Show property examples. |
 
-## Architecture-Specific Warnings
+## Workflow Sequencing Recommendations
 
-For orchestrator + specialized skills architecture specifically:
+How to integrate Rendezvous into existing 5-phase TDD workflow WITHOUT breaking TDD principles or confusing users.
 
-### Dynamic Routing Complexity
-**Problem:** Orchestrator must classify requests and route to correct skill. Misrouting causes poor results.
+### Recommended Integration: Add to Phase 4 (Verification)
 
-**Prevention:**
-- Keep routing logic simple and explicit
-- Use clear skill descriptions for routing decisions
-- Log routing decisions for debugging
-- Test with ambiguous user prompts
-- Consider whether routing adds value vs. direct skill invocation
+**Current Phase 4 workflow:**
+1. Run `npm run test:coverage`
+2. Verify >= 90% coverage
+3. Security review
+4. User confirmation to proceed
 
-### Shared State Management
-**Problem:** Multiple skills need to coordinate state (current test results, contract modifications, etc.).
+**Modified Phase 4 workflow:**
+1. Run `npm run test:coverage`
+2. Verify >= 90% coverage
+3. **Run Rendezvous fuzz testing: `npx rv . [contract] invariant --runs 1000`**
+4. **Verify all invariants hold (no failures)**
+5. Security review (existing)
+6. User confirmation to proceed
 
-**Prevention:**
-- Use filesystem for state: write to `.planning/state/` directory
-- Pass state explicitly via arguments rather than assuming shared context
-- Document state dependencies between skills
-- Clean up state after workflow completion
-- Consider whether skills actually need shared state
+**Rationale:**
+- Fuzz testing is **verification**, not TDD
+- Properties can only be tested after implementation exists
+- Running after unit tests ensures basic behavior is correct
+- Fits existing "automated + user confirmation" gate model
+- Doesn't disrupt TDD RED-GREEN-REFACTOR cycle
 
-### Skill Composition Brittleness
-**Problem:** Workflow depends on skills executing in sequence, but one skill failure breaks everything.
+**Phase 2 modification (prepare for fuzz testing):**
+- After unit test scenarios approved, ask: "Should we define invariant properties for fuzz testing?"
+- If yes, guide user to define 3-5 key invariants during test design
+- Document properties in design notes
+- Write property functions alongside unit tests (but don't run Rendezvous yet)
 
-**Prevention:**
-- Design skills to be idempotent (can retry safely)
-- Include error handling in orchestrator
-- Validate preconditions before invoking next skill
-- Provide meaningful error messages for failure points
-- Test partial execution scenarios
+### Alternative: Optional "Phase 4.5" - Deep Verification
 
-### Orchestrator Permission Scope
-**Problem:** Orchestrator needs different permissions than specialized skills, causing security/usability tension.
+For high-security contracts, offer extended verification phase:
+- Standard verification: 90% coverage + security review
+- Deep verification: 95% coverage + fuzz testing (1000+ runs) + manual security audit
 
-**Prevention:**
-- Use `allowed-tools` per skill, not globally
-- Test orchestrator with both restrictive and permissive settings
-- Document minimum required permissions clearly
-- Consider sandbox compatibility
-- Separate read-only exploration from write operations
+This avoids forcing fuzz testing on every project while making it available for critical contracts.
 
-## Testing Checklist for Plugin Release
+## Testing Checklist for Trigger Changes
 
-Before distributing your plugin, verify:
+Before deploying expanded skill description, verify against these prompts (should NOT activate):
 
-- [ ] Plugin works with `--plugin-dir` in clean environment
-- [ ] All skills have clear descriptions with trigger phrases
-- [ ] Skills under 500 lines, reference material in supporting files
-- [ ] `argument-hint` provided for skills accepting arguments
-- [ ] Required tools declared in `allowed-tools` frontmatter
-- [ ] Permission requirements documented in README
-- [ ] Environment variable dependencies documented
-- [ ] Plugin.json has valid name, description, version, license
-- [ ] Namespace doesn't conflict with common plugin names
-- [ ] Tested installation from marketplace (not just --plugin-dir)
-- [ ] Skills include verification steps or expected outputs
-- [ ] Context consumption checked with `/context`
-- [ ] Subagent skills use appropriate context mode
-- [ ] README includes usage examples and troubleshooting
-- [ ] Works on multiple OS (test paths, line endings)
+- [ ] "Help me deploy an Ethereum smart contract"
+- [ ] "How do I test my React components?"
+- [ ] "I want to build a Solana program"
+- [ ] "Test-driven development for Python APIs"
+- [ ] "Deploy my Next.js app to Vercel"
+- [ ] "Smart contract security best practices" (too generic)
+- [ ] "How do blockchain transactions work?" (educational, not development)
+
+Should STILL activate on:
+
+- [ ] "Help me build a Stacks contract"
+- [ ] "How do I test Clarity smart contracts?"
+- [ ] "Set up Clarinet project for NFT contract"
+- [ ] "I'm working on a Stacks blockchain app"
+- [ ] "Test my `.clar` contract"
+- [ ] "Clarity contract development with TDD"
+
+## Proposed Skill Description Expansions
+
+Current (163 chars):
+> "Stacks blockchain development assistant. Guides Clarity smart contract development using test-driven development with Clarinet CLI."
+
+**Option A: Conservative (add usage hints)** - 253 chars:
+> "Stacks blockchain development assistant. Guides Clarity smart contract development using test-driven development with Clarinet CLI. Use when working with Stacks, Clarity smart contracts, Clarinet projects, or when building applications on the Stacks blockchain."
+
+**Pros:** Minimal risk, adds "use when" context for Claude's selection
+**Cons:** Somewhat redundant with existing triggers
+**Risk:** LOW
+
+**Option B: Add fuzz testing context** - 312 chars:
+> "Stacks blockchain development assistant. Guides Clarity smart contract development using test-driven development with Clarinet CLI and Rendezvous fuzz testing. Use when working with Stacks blockchain contracts, Clarity smart contracts, Clarinet projects, or testing Clarity contract properties and invariants."
+
+**Pros:** Signals fuzz testing capability, improves matching for "test Clarity" prompts
+**Cons:** Longer, adds "testing" keyword (may cause some false positives)
+**Risk:** MEDIUM - test thoroughly against non-Stacks testing prompts
+
+**Option C: Explicit negative triggers (if false positives emerge)** - 380 chars:
+> "Stacks blockchain development assistant. Guides Clarity smart contract development using test-driven development with Clarinet CLI. Use when working with Stacks, Clarity smart contracts, Clarinet projects, or Stacks blockchain applications. NOT for Ethereum, Solana, or other blockchain platforms. NOT for general testing or deployment unrelated to Stacks."
+
+**Pros:** Reduces false positives explicitly
+**Cons:** Verbose, uses precious description budget on negatives
+**Risk:** LOW - but wastes space
+
+**Recommendation:** Start with Option A (conservative). Monitor false positive rate. Upgrade to Option B only if missing valid Clarity testing prompts.
 
 ## Sources
 
-**Official Documentation (HIGH confidence):**
-- [Claude Code Skills Documentation](https://code.claude.com/docs/en/skills)
-- [Claude Code Plugins Documentation](https://code.claude.com/docs/en/plugins)
-- [Claude Code Best Practices](https://code.claude.com/docs/en/best-practices)
+### Official Documentation (HIGH confidence)
+- [Rendezvous GitHub Repository](https://github.com/stacks-network/rendezvous) - Setup, installation, command reference
+- [Rendezvous Book](https://stacks-network.github.io/rendezvous/) - Official documentation for Clarity fuzzer
+- [Claude Code Skills Documentation](https://code.claude.com/docs/en/skills) - Skill specification and best practices
+- [Skill Authoring Best Practices](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/best-practices) - Official skill design patterns
 
-**Community Insights (MEDIUM confidence):**
-- [Claude Code Multi-Agent Orchestration System](https://gist.github.com/kieranklaassen/d2b35569be2c7f1412c64861a219d51f)
-- [Optimizing Claude Code: Skills, Plugins, and the Art of Teaching Your AI](https://mays.co/optimizing-claude-code)
-- [Medium: Your AI has infinite knowledge and zero habits](https://medium.com/@elliotJL/your-ai-has-infinite-knowledge-and-zero-habits-heres-the-fix-e279215d478d)
+### Community Insights (MEDIUM confidence)
+- [How to Make Claude Code Skills Activate Reliably](https://scottspence.com/posts/how-to-make-claude-code-skills-activate-reliably) - Trigger keyword patterns and false positive avoidance
+- [Claude Skills and CLAUDE.md: A Practical 2026 Guide](https://www.gend.co/blog/claude-skills-claude-md-guide) - Skill description best practices
+- [Claude Agent Skills: A First Principles Deep Dive](https://leehanchung.github.io/blogs/2025/10/26/claude-skills-deep-dive/) - How skill selection works (pure LLM reasoning, no keyword matching)
 
-**Architecture Patterns (MEDIUM confidence):**
-- [Microsoft Learn: AI Agent Orchestration Patterns](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns)
-- [Kanerika: AI Agent Orchestration in 2026](https://kanerika.com/blogs/ai-agent-orchestration/)
-- [Claude Blog: When to use multi-agent systems](https://claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them)
-- [Cloud Geometry: Why Multi-Agent Systems Need Real Architecture](https://www.cloudgeometry.com/blog/from-solo-act-to-orchestra-why-multi-agent-systems-demand-real-architecture)
+### Fuzz Testing Best Practices (MEDIUM confidence)
+- [Fuzz Testing 101: Strengthen Your Software Security](https://aqua-cloud.io/fuzz-testing/) - Integration challenges with existing test suites
+- [How to Avoid Overfitting Your Test Suite - Rubrik](https://www.rubrik.com/blog/architecture/21/7/fuzz-testing-how-to-avoid-overfitting-your-test-suite) - Property definition patterns
+- [Developer's Guide to Fuzz Testing - DevOps.com](https://devops.com/developers-guide-to-fuzz-testing/) - Workflow integration and resource management
+- [Fuzz Testing: A Beginner's Guide - Better Stack](https://betterstack.com/community/guides/testing/fuzz-testing/) - Common mistakes and best practices
 
-**Practical Guidance (MEDIUM confidence):**
-- [Building /deep-plan: A Claude Code Plugin](https://pierce-lamb.medium.com/building-deep-plan-a-claude-code-plugin-for-comprehensive-planning-30e0921eb841)
-- [The best way to do agentic development in 2026](https://dev.to/chand1012/the-best-way-to-do-agentic-development-in-2026-14mn)
-- [Claude Code in 2026: End-to-End SDLC Workflow](https://developersvoice.com/blog/ai/claude_code_2026_end_to_end_sdlc/)
+### Property-Based Testing (MEDIUM confidence)
+- [Property-based TDD - Pluralsight](https://www.pluralsight.com/tech-blog/property-based-tdd/) - Integrating properties into TDD workflow
+- [Introduction to Properties-Driven Development](https://dev.to/meeshkan/introduction-to-properties-driven-development-547g) - Property definition philosophy
+- [Property-Based Testing for Reliable Software](https://www.softwaretestingmagazine.com/knowledge/how-to-master-property-based-testing-for-reliable-software/) - Complementing unit tests with property tests
+
+### Clarity Testing (LOW-MEDIUM confidence)
+- [Clarity Property-Based Testing Primer](https://blog.nikosbaxevanis.com/2022/03/05/clarity-property-based-testing-primer/) - Early patterns for Clarity properties (2022, may be outdated)
+- [Testing Your Contract - Clarity Book](https://book.clarity-lang.org/ch07-04-testing-your-contract.html) - Official testing philosophy
+
+---
+
+**Research confidence assessment:**
+- **Rendezvous integration:** MEDIUM (official docs available, but limited community battle-testing as of early 2026)
+- **Trigger expansion risks:** HIGH (well-documented in Claude Code community, tested patterns)
+- **TDD + Fuzz workflow:** MEDIUM-HIGH (general fuzz testing practices are mature, Clarity-specific patterns are emerging)
+- **Property definition:** MEDIUM (property-based testing is well-understood, Clarity-specific invariants need more examples)
