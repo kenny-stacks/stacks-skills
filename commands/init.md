@@ -19,17 +19,7 @@ Tell the user:
 
 Wait for user confirmation before continuing.
 
-### Step 1: Create Documentation Index
-
-Fetch the latest documentation index and save it as JSON. Run this command:
-
-```bash
-mkdir -p .claude/stacks && curl -s "https://docs.stacks.co/llms.txt" | grep -E '^\s*-\s*\[' | grep -v '/zh/\|/es/' | sed 's/.*\[\([^]]*\)\](\([^)]*\)).*/{"title":"\1","path":"\2"}/' | jq -s '{lastUpdated:"'"$(date +%Y-%m-%d)"'",source:"https://docs.stacks.co/llms.txt",docs:.}' > .claude/stacks/docs-index.json
-```
-
-If `jq` is not installed, tell the user to install it (`brew install jq`) or create the JSON file manually by reading the curl output and writing the JSON structure.
-
-### Step 2: Copy Knowledge File
+### Step 1: Copy Knowledge File
 
 Copy the knowledge file to the user's project:
 
@@ -37,7 +27,7 @@ Copy the knowledge file to the user's project:
 mkdir -p .claude/stacks/knowledge && cp "${CLAUDE_PLUGIN_ROOT}/general-stacks-knowledge.md" .claude/stacks/knowledge/
 ```
 
-### Step 3: Update CLAUDE.md
+### Step 2: Update CLAUDE.md
 
 Check if CLAUDE.md exists. If not, create it. Then append the following if not already present:
 
@@ -47,12 +37,12 @@ Check if CLAUDE.md exists. If not, create it. Then append the following if not a
 Stacks knowledge can be found at @.claude/stacks/knowledge/general-stacks-knowledge.md
 ```
 
-### Step 4: Completion Notice
+### Step 3: Completion Notice
 
 Tell the user:
 "The Stacks plugin has been initialized! You can run `/stacks:help` to see available commands and capabilities."
 
-### Step 5: Offer Development Server Setup
+### Step 4: Offer Development Server Setup
 
 Ask the user if they would like to start the development environment:
 
@@ -66,7 +56,7 @@ If the user agrees:
 1. Invoke the `start-dev-server` skill to start both servers
 2. Remind them about Chrome DevTools MCP for frontend debugging: "The Chrome DevTools MCP server is configured in this plugin. You can use it to inspect frontend console output and network requests."
 
-### Step 6: Recommend Best Practices
+### Step 5: Recommend Best Practices
 
 Suggest:
 "For the best development experience, I recommend:

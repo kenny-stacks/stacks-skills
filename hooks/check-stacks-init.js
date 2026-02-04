@@ -80,46 +80,4 @@ if (!isInitialized) {
   process.exit(0);
 }
 
-// Check docs index age (only if initialized)
-const knowledgeFilePath = path.join(knowledgeDirectory, stacksKnowledgeFileName);
-const DOCS_MAX_AGE_DAYS = 30;
-
-function checkDocsAge() {
-  try {
-    if (!fs.existsSync(knowledgeFilePath)) return null;
-
-    const content = fs.readFileSync(knowledgeFilePath, 'utf8');
-    const match = content.match(/\*\*Last Updated:\*\*\s*(\d{4}-\d{2}-\d{2})/);
-
-    if (!match) return null;
-
-    const lastUpdated = new Date(match[1]);
-    const now = new Date();
-    const diffDays = Math.floor((now - lastUpdated) / (1000 * 60 * 60 * 24));
-
-    return { lastUpdated: match[1], diffDays };
-  } catch (err) {
-    return null;
-  }
-}
-
-const docsAge = checkDocsAge();
-
-if (docsAge && docsAge.diffDays > DOCS_MAX_AGE_DAYS) {
-  const result = {
-    reason: 'Stacks docs index may be stale',
-    systemMessage: `\n${styles.cyan}Stacks docs index is ${docsAge.diffDays} days old${styles.reset} ${styles.dim}(last updated: ${docsAge.lastUpdated})${styles.reset}\nRun ${styles.cyan}/stacks:update-docs${styles.reset} to refresh the documentation index.`,
-    suppressOutput: true,
-    hookSpecificOutput: {
-      hookEventName: 'SessionStart',
-      docsLastUpdated: docsAge.lastUpdated,
-      docsAgeDays: docsAge.diffDays,
-      additionalContext: `The Stacks documentation index is ${docsAge.diffDays} days old (last updated: ${docsAge.lastUpdated}).
-          Consider suggesting the user run /stacks:update-docs to refresh the documentation index.
-          This is not urgent, but helps ensure Claude has access to the latest documentation paths.`,
-    },
-  };
-  console.log(JSON.stringify(result));
-}
-
 process.exit(0);

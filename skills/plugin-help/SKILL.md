@@ -30,7 +30,7 @@ Enhances Claude for developing Clarity smart contracts on the Stacks blockchain.
 | `/stacks:init` | Initialize the plugin for your project. Copies knowledge files and optionally starts dev servers. |
 | `/stacks:help` | Show this help information. |
 | `/stacks:expert-advice` | Get expert review of your Clarity contracts against best practices and security patterns. |
-| `/stacks:update-docs` | Refresh the documentation index to get latest Stacks doc paths. |
+| `/stacks:update-docs` | Refresh the documentation index from docs.stacks.co/llms.txt. |
 
 ### Available Skills
 
