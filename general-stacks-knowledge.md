@@ -31,6 +31,42 @@ npm run test           # Run tests
 npm run test:coverage  # Run with coverage report
 ```
 
+### Fuzz Testing with Rendezvous
+
+Rendezvous (`rv`) is a property-based fuzzer for Clarity contracts. It finds edge cases that unit tests miss.
+
+**Setup:**
+```bash
+npm install @stacks/rendezvous
+```
+
+**Test file:** Create `contracts/my-contract.tests.clar` alongside your contract.
+
+**Property test pattern** (functions starting with `test-`):
+```clarity
+(define-public (test-deposit-withdraw (amount uint))
+  (let ((balance-before (get-balance tx-sender)))
+    (try! (deposit amount))
+    (try! (withdraw amount))
+    (asserts! (is-eq (get-balance tx-sender) balance-before) (err u999))
+    (ok true)))
+```
+
+**Invariant pattern** (read-only functions starting with `invariant-`):
+```clarity
+(define-read-only (invariant-total-supply-constant)
+  (<= (var-get total-supply) u1000000))
+```
+
+**Run tests:**
+```bash
+npx rv . my-contract test           # Property tests
+npx rv . my-contract invariant      # Invariant tests
+npx rv . my-contract test --runs=1000 --seed=12345
+```
+
+**Key options:** `--runs=N` (iterations), `--seed=N` (reproducibility), `--bail` (stop on first failure)
+
 ## Project Reference
 
 ### Structure
@@ -87,6 +123,7 @@ npm run test:coverage  # Run with coverage report
 ### External Resources
 
 - **Clarity Book**: https://book.clarity-lang.org
+- **Rendezvous (Fuzzer)**: https://github.com/stacks-network/rendezvous
 - **SIP-010 (FT Standard)**: https://github.com/stacksgov/sips/blob/main/sips/sip-010/sip-010-fungible-token-standard.md
 - **SIP-009 (NFT Standard)**: https://github.com/stacksgov/sips/blob/main/sips/sip-009/sip-009-nft-standard.md
 - **Testnet Faucet**: https://explorer.hiro.so/sandbox/faucet?chain=testnet
