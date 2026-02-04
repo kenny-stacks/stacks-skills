@@ -39,10 +39,12 @@ mkdir -p .claude/stacks/knowledge && cp "${CLAUDE_PLUGIN_ROOT}/general-stacks-kn
 
 ### Step 3: Update CLAUDE.md
 
-Check if CLAUDE.md exists. If not, create it. Then append the import reference if not already present:
+Check if CLAUDE.md exists. If not, create it. Then append the following if not already present:
 
 ```markdown
-@import .claude/stacks/knowledge/general-stacks-knowledge.md
+# Stacks Knowledge
+
+Stacks knowledge can be found at @.claude/stacks/knowledge/general-stacks-knowledge.md
 ```
 
 ### Step 4: Completion Notice
