@@ -8,10 +8,10 @@ A Claude Code plugin that provides an optimal experience developing Clarity smar
 
 ## Features
 
-- **Stacks Documentation**: Ensures Claude always accesses current Stacks documentation before writing Clarity code, avoiding outdated patterns from training data. Documentation index refreshes each session.
-- **Adds Stacks Knowledge**: Import Stacks/Clarity best practices, conventions, and common pitfalls to your project's CLAUDE.md
+- **Stacks Documentation**: A compressed index of 270+ doc paths is always in context, ensuring Claude fetches current documentation before writing Clarity code. Updated on init, with staleness warnings after 30 days.
+- **Stacks Knowledge**: Best practices, conventions, and common pitfalls imported to your project's CLAUDE.md
 - **Testing Support**: Run Clarinet SDK + Vitest tests with automatic error diagnosis and coverage reporting
-- **Deployment Guidance**: Claude guides you through deploying contracts to testnet or mainnet with pre-flight checks and safety prompts
+- **Deployment Guidance**: Guided deployment to testnet or mainnet with pre-flight checks and safety prompts
 - **Development Environment**: Start Clarinet devnet and frontend dev servers with Chrome DevTools integration for full debugging visibility
 
 ## Installation
@@ -53,7 +53,22 @@ Finally, to access more information about the plugin and its features, run:
 
 ## Commands
 
-Check out the individual [commands](./commands) and [skills](./skills) to learn more about what they are and what they do.
+| Command | Description |
+|---------|-------------|
+| `/stacks:init` | Initialize the plugin - copies knowledge file, fetches fresh docs, updates CLAUDE.md |
+| `/stacks:help` | Show available commands and features |
+| `/stacks:expert-advice` | Get expert review of your Clarity contracts |
+| `/stacks:update-docs` | Refresh the documentation index from docs.stacks.co |
+
+### Skills
+
+| Skill | When It Activates |
+|-------|-------------------|
+| **run-tests** | When you want to run tests or debug test failures |
+| **deploy-contract** | When deploying contracts to testnet or mainnet |
+| **start-dev-server** | When starting Clarinet devnet and frontend servers |
+
+See [commands](./commands) and [skills](./skills) for full details.
 
 ## Recommended Permissions
 
