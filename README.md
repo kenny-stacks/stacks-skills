@@ -25,7 +25,7 @@ A Claude Code plugin that provides an optimal experience developing Clarity smar
 ### Install the Stacks plugin
 
 ```bash
-/plugin install stacks@kenny-stacks-stacks-claude-plugin
+/plugin install stacks@kenny-stacks-stacks-claude-plugin --scope project
 ```
 
 > [!NOTE]
