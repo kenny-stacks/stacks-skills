@@ -80,4 +80,39 @@ if (!isInitialized) {
   process.exit(0);
 }
 
+// Check if docs index is stale (only if initialized)
+const knowledgeFilePath = path.join(knowledgeDirectory, stacksKnowledgeFileName);
+const DOCS_MAX_AGE_DAYS = 30;
+
+function checkDocsAge() {
+  try {
+    if (!fs.existsSync(knowledgeFilePath)) return null;
+    const stats = fs.statSync(knowledgeFilePath);
+    const mtime = stats.mtime;
+    const now = new Date();
+    const diffDays = Math.floor((now - mtime) / (1000 * 60 * 60 * 24));
+    return { lastUpdated: mtime.toISOString().split('T')[0], diffDays };
+  } catch (err) {
+    return null;
+  }
+}
+
+const docsAge = checkDocsAge();
+
+if (docsAge && docsAge.diffDays > DOCS_MAX_AGE_DAYS) {
+  const result = {
+    reason: 'Stacks docs index may be stale',
+    systemMessage: `\n${styles.cyan}Stacks docs index is ${docsAge.diffDays} days old${styles.reset} ${styles.dim}(last updated: ${docsAge.lastUpdated})${styles.reset}\nRun ${styles.cyan}/stacks:update-docs${styles.reset} to refresh.`,
+    suppressOutput: true,
+    hookSpecificOutput: {
+      hookEventName: 'SessionStart',
+      docsLastUpdated: docsAge.lastUpdated,
+      docsAgeDays: docsAge.diffDays,
+      additionalContext: `The Stacks documentation index is ${docsAge.diffDays} days old (last updated: ${docsAge.lastUpdated}).
+          Consider suggesting the user run /stacks:update-docs to refresh the documentation index.`,
+    },
+  };
+  console.log(JSON.stringify(result));
+}
+
 process.exit(0);

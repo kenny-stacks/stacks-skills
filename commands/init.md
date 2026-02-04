@@ -27,7 +27,17 @@ Copy the knowledge file to the user's project:
 mkdir -p .claude/stacks/knowledge && cp "${CLAUDE_PLUGIN_ROOT}/general-stacks-knowledge.md" .claude/stacks/knowledge/
 ```
 
-### Step 2: Update CLAUDE.md
+### Step 2: Update Docs Index
+
+Fetch the latest documentation index:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/update-docs-index.js" ".claude/stacks/knowledge/general-stacks-knowledge.md"
+```
+
+If this fails (e.g., network issue), continue anyway - the baked-in index is still usable.
+
+### Step 3: Update CLAUDE.md
 
 Check if CLAUDE.md exists. If not, create it. Then append the following if not already present:
 
@@ -37,12 +47,12 @@ Check if CLAUDE.md exists. If not, create it. Then append the following if not a
 Stacks knowledge can be found at @.claude/stacks/knowledge/general-stacks-knowledge.md
 ```
 
-### Step 3: Completion Notice
+### Step 4: Completion Notice
 
 Tell the user:
 "The Stacks plugin has been initialized! You can run `/stacks:help` to see available commands and capabilities."
 
-### Step 4: Offer Development Server Setup
+### Step 5: Offer Development Server Setup
 
 Ask the user if they would like to start the development environment:
 
@@ -56,7 +66,7 @@ If the user agrees:
 1. Invoke the `start-dev-server` skill to start both servers
 2. Remind them about Chrome DevTools MCP for frontend debugging: "The Chrome DevTools MCP server is configured in this plugin. You can use it to inspect frontend console output and network requests."
 
-### Step 5: Recommend Best Practices
+### Step 6: Recommend Best Practices
 
 Suggest:
 "For the best development experience, I recommend:
