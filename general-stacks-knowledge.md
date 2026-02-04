@@ -25,47 +25,11 @@ clarinet check
 
 ### Testing
 
-Run tests with the Clarinet SDK + Vitest setup:
-```bash
-npm run test           # Run tests
-npm run test:coverage  # Run with coverage report
-```
+**Unit tests**: Use Clarinet SDK + Vitest. Fetch `/clarinet/testing-with-clarinet-sdk.md` for patterns.
 
-### Fuzz Testing with Rendezvous
+**Fuzz testing**: Use Rendezvous (`@stacks/rendezvous`) for property-based testing. Finds edge cases unit tests miss. Fetch `/rendezvous/quickstart.md` for setup and patterns.
 
-Rendezvous (`rv`) is a property-based fuzzer for Clarity contracts. It finds edge cases that unit tests miss.
-
-**Setup:**
-```bash
-npm install @stacks/rendezvous
-```
-
-**Test file:** Create `contracts/my-contract.tests.clar` alongside your contract.
-
-**Property test pattern** (functions starting with `test-`):
-```clarity
-(define-public (test-deposit-withdraw (amount uint))
-  (let ((balance-before (get-balance tx-sender)))
-    (try! (deposit amount))
-    (try! (withdraw amount))
-    (asserts! (is-eq (get-balance tx-sender) balance-before) (err u999))
-    (ok true)))
-```
-
-**Invariant pattern** (read-only functions starting with `invariant-`):
-```clarity
-(define-read-only (invariant-total-supply-constant)
-  (<= (var-get total-supply) u1000000))
-```
-
-**Run tests:**
-```bash
-npx rv . my-contract test           # Property tests
-npx rv . my-contract invariant      # Invariant tests
-npx rv . my-contract test --runs=1000 --seed=12345
-```
-
-**Key options:** `--runs=N` (iterations), `--seed=N` (reproducibility), `--bail` (stop on first failure)
+Both testing approaches should be used before deployment.
 
 ## Project Reference
 
