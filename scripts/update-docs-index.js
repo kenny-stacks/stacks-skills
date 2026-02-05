@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Fetches latest docs from docs.stacks.co/llms.txt and updates the compressed
- * index in general-stacks-knowledge.md
+ * Fetches latest docs from docs.stacks.co/llms.txt and updates the
+ * compressed index in general-stacks-knowledge.md using Vercel-style format.
  *
  * Usage: node scripts/update-docs-index.js [target-file]
  * Default target: ./general-stacks-knowledge.md (plugin source)
@@ -42,9 +42,12 @@ function compressIndex(content) {
     if (line.startsWith('## Press') || line.startsWith('## Stacks Brand')) skip = true;
     if (skip) continue;
 
-    const match = line.match(/\[.*?\]\((\/[^)]+)\)/);
-    if (match) {
-      const docPath = match[1];
+    // Match markdown links or raw paths
+    const linkMatch = line.match(/\[.*?\]\((\/[^)]+)\)/);
+    const rawMatch = line.match(/^- `?(\/[a-z0-9\-/]+\.md)`?/i);
+    const docPath = linkMatch ? linkMatch[1] : (rawMatch ? rawMatch[1] : null);
+
+    if (docPath) {
       // Skip non-English
       if (docPath.includes('/zh/') || docPath.includes('/es/')) continue;
       paths.push(docPath);
@@ -54,17 +57,31 @@ function compressIndex(content) {
   // Group by directory
   const groups = {};
   for (const p of paths) {
-    const parts = p.split('/');
+    const parts = p.split('/').filter(Boolean); // Remove empty strings from leading /
     const file = parts.pop();
-    const dir = parts.join('/') || '/';
+    const dir = parts.join('/') || 'root';
     if (!groups[dir]) groups[dir] = [];
-    groups[dir].push(file);
+    if (!groups[dir].includes(file)) {
+      groups[dir].push(file);
+    }
   }
 
-  // Build compressed format
-  const compressed = Object.entries(groups)
-    .map(([dir, files]) => dir + ':{' + files.join(',') + '}')
+  // Build Vercel-style compressed format (single line)
+  const header = '[Stacks Docs Index]|root: https://docs.stacks.co|IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning. Fetch docs before writing code.';
+
+  // Sort directories for consistent output
+  const sortedDirs = Object.keys(groups).sort((a, b) => {
+    if (a === 'root') return -1;
+    if (b === 'root') return 1;
+    return a.localeCompare(b);
+  });
+
+  const dirEntries = sortedDirs
+    .filter(dir => dir !== 'root') // Skip root-level files
+    .map(dir => `${dir}:{${groups[dir].join(',')}}`)
     .join('|');
+
+  const compressed = header + '|' + dirEntries;
 
   return { compressed, pathCount: paths.length };
 }
